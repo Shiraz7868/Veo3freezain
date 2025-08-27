@@ -290,7 +290,7 @@
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                 Download All
                             </button>
-                            <button type="button" id="delete-all-videos-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 btn-primary">
+                            <button type="button" id="delete-all-videos-btn" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 btn-primary">
                                 Delete All Videos
                             </button>
                         </div>
@@ -829,10 +829,11 @@
                 localStorage.setItem('gcloud_api_key', newApiKey);
                 userApiKey = newApiKey;
 
-                // Save to Supabase users table
+                // Save to Supabase users table (use update to avoid email constraint issue)
                 const { error } = await supabase
                     .from('users')
-                    .upsert({ id: currentUser.id, api_key: newApiKey }, { onConflict: 'id' });
+                    .update({ api_key: newApiKey }) // ONLY update api_key
+                    .eq('id', currentUser.id); // For the current user
 
                 if (error) throw error;
 
@@ -1023,7 +1024,7 @@
                         prompt: promptData.prompt,
                         model: promptData.model,
                         ratio: promptData.ratio,
-                        status: 'Pending',
+                        status: 'Pending', // Use 'Pending' for DB insert
                         video_url: null
                     }])
                     .select()
