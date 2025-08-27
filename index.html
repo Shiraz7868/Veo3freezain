@@ -6,8 +6,19 @@
     <title>AI Video Generator Dashboard</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS SDK CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase JS SDK CDN (ESM for proper import) -->
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+        const SUPABASE_URL = 'https://hdydckrgbdfqhvrxmmpi.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhkeWRja3JnYmRmcWh2cnhtbXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyNzg1NzcsImV4cCI6MjA3MTg1NDU3N30.DXqqPbAODuwJSQIkWLJTesV3Ku_9HHvX-b14Wourfp0';
+        
+        window.supabaseClient = createClient(
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY,
+            { auth: { persistSession: true, autoRefreshToken: true } }
+        );
+    </script>
+
     <style>
         /* Custom CSS for professional look and feel, and dark mode transitions */
         body {
@@ -111,173 +122,168 @@
             background-color: #2d3748; /* Dark background for individual prompt boxes */
             border: 1px solid #4a5568;
         }
+        /* Masked input for API key */
+        .masked-input {
+            -webkit-text-security: disc;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 antialiased dark:bg-gray-900 dark:text-gray-200">
-    <div id="app" class="min-h-screen flex">
-        <!-- Auth Forms Section -->
-        <div id="auth-section" class="flex-1 flex items-center justify-center p-6">
-            <div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 space-y-6">
-                <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-900 dark:text-white">Login</h2>
-                <form id="auth-form" class="space-y-4">
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
-                        <input type="email" id="email" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                    </div>
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                        <input type="password" id="password" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                    </div>
-                    <button type="submit" id="auth-button" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 btn-primary">Login</button>
-                </form>
-                <div class="text-center text-sm flex justify-center items-baseline space-x-1">
-                    <p id="auth-toggle-message" class="text-gray-600 dark:text-gray-400">Don't have an account?</p>
-                    <a href="#" id="toggle-auth-mode" class="font-medium text-indigo-600 hover:text-indigo-500">Register</a>
+    <!-- Auth View (Login/Register Forms) -->
+    <div id="authView" class="min-h-screen flex items-center justify-center p-6">
+        <div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 space-y-6">
+            <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-900 dark:text-white">Login</h2>
+            
+            <!-- Login Form -->
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="loginEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
+                    <input type="email" id="loginEmail" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
                 </div>
-                <p id="auth-error-message" class="text-red-500 text-sm text-center"></p>
+                <div>
+                    <label for="loginPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                    <input type="password" id="loginPassword" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                </div>
+                <button type="button" id="loginBtn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 btn-primary">Login</button>
+            </form>
+
+            <!-- Register Form (Initially Hidden) -->
+            <form id="register-form" class="space-y-4 hidden">
+                <div>
+                    <label for="registerEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
+                    <input type="email" id="registerEmail" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                </div>
+                <div>
+                    <label for="registerPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                    <input type="password" id="registerPassword" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                </div>
+                <button type="button" id="registerBtn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 btn-primary">Register</button>
+            </form>
+
+            <div class="text-center text-sm">
+                <p id="auth-toggle-message" class="text-gray-600 dark:text-gray-400">Don't have an account? <a href="#" id="toggle-auth-mode" class="font-medium text-indigo-600 hover:text-indigo-500">Register</a></p>
+                <p id="auth-confirm-notice" class="text-sm text-yellow-600 dark:text-yellow-400 mt-2 hidden">
+                    Email not confirmed. <button type="button" id="resendConfirmationBtn" class="font-medium text-indigo-600 hover:text-indigo-500 underline">Resend confirmation?</button>
+                </p>
             </div>
-        </div>
-
-        <!-- Dashboard Section -->
-        <div id="dashboard-section" class="hidden flex flex-1">
-            <!-- Sidebar -->
-            <aside class="w-64 bg-white dark:bg-gray-800 shadow-md flex flex-col justify-between sidebar">
-                <div class="p-6">
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">AI Video Studio</h1>
-                    <nav class="space-y-2">
-                        <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="api-settings"> <!-- Changed data-section name -->
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2v5a2 2 0 01-2 2h-2a2 2 0 01-2-2V9a2 2 0 012-2h2zM5 7a2 2 0 012 2v5a2 2 0 01-2 2H3a2 2 0 01-2-2V9a2 2 0 012-2h2zM21 7a2 2 0 012 2v5a2 2 0 01-2 2h-2a2 2 0 01-2-2V9a2 2 0 012-2h2z"></path></svg>
-                            API Settings
-                        </a>
-                        <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="prompt-generator"> <!-- Changed data-section name -->
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            Prompt Generator
-                        </a>
-                        <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="my-videos">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                            My Videos
-                        </a>
-                    </nav>
-                </div>
-                <div class="p-6 border-t border-gray-200 dark:border-gray-700">
-                    <button id="dark-mode-toggle" class="w-full flex items-center justify-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium mb-2">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9 9 0 008.354-5.646z"></path></svg>
-                        <span id="dark-mode-text">Dark Mode</span>
-                    </button>
-                    <button id="logout-button" class="w-full flex items-center justify-center px-4 py-2 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 font-medium">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                        Logout
-                    </button>
-                </div>
-            </aside>
-
-            <!-- Main Content Area -->
-            <main class="flex-1 p-8 overflow-y-auto">
-                <!-- API Settings Section -->
-                <section id="api-settings-section" class="main-section space-y-6">
-                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">API Settings</h2>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
-                        <p class="text-gray-700 dark:text-gray-300 mb-4">Enter your Google Cloud API key. This key is stored locally in your browser and used for all video generation requests.</p>
-                        <form id="api-key-form" class="space-y-4">
-                            <div>
-                                <label for="google-cloud-api-key" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Google Cloud API Key</label>
-                                <input type="text" id="google-cloud-api-key" placeholder="Enter your Google Cloud API Key" class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                            </div>
-                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 btn-primary">
-                                Save API Key
-                            </button>
-                            <p id="api-key-status" class="text-sm mt-2"></p>
-                        </form>
-                    </div>
-                </section>
-
-                <!-- Prompt Generator Section (NEW) -->
-                <section id="prompt-generator-section" class="main-section hidden space-y-6">
-                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Prompt Generator</h2>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
-                        <div class="flex flex-col sm:flex-row gap-4 mb-6">
-                            <div class="flex-1 min-w-[200px]">
-                                <label for="global-model-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">AI Model</label>
-                                <select id="global-model-select" class="block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                                    <!-- Options will be populated by JS -->
-                                </select>
-                            </div>
-                            <div class="flex-1 min-w-[150px]">
-                                <label for="global-ratio-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Aspect Ratio</label>
-                                <select id="global-ratio-select" class="block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                                    <!-- Options will be populated by JS -->
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Current input for new prompts -->
-                        <div class="prompt-input-wrapper rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row gap-4 items-start sm:items-center card mb-6">
-                            <textarea
-                                id="current-prompt-input"
-                                class="block w-full px-3 py-2 border rounded-md shadow-sm bg-gray-50 dark:bg-gray-700 dark:text-white form-control"
-                                rows="2"
-                                placeholder="Enter your video prompt here and press Enter (desktop) or click '+' (mobile)..."
-                            ></textarea>
-                            <button id="add-prompt-from-input-button" class="flex-shrink-0 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 btn-primary w-full sm:w-auto">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                                <span class="sr-only sm:not-sr-only ml-0 sm:ml-2">Add Prompt</span>
-                            </button>
-                        </div>
-
-
-                        <div id="prompts-list-container" class="space-y-4 mb-6">
-                            <!-- Dynamically added prompt boxes will go here -->
-                            <p id="no-active-prompts-message" class="text-center text-gray-500 dark:text-gray-400">No prompts added yet. Add one above!</p>
-                        </div>
-
-                        <button id="generate-all-prompts-button" class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 btn-primary">
-                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c-1.105 0-2 .895-2 2s.895 2 2 2 2-.895 2-2-.895-2-2-2zm0 0H6a2 2 0 00-2 2v-3a2 2 0 012-2h3zm-6 3a2 2 0 11-4 0 2 2 0 014 0zm0 0h-3zm-6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                            Generate All Videos
-                        </button>
-                    </div>
-                </section>
-
-                <!-- My Videos Section (unchanged in HTML) -->
-                <section id="my-videos-section" class="main-section hidden space-y-6">
-                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">My Videos</h2>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
-                        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                            <div class="relative w-full sm:w-1/2">
-                                <input type="text" id="video-search-input" placeholder="Search by prompt, model, or status..." class="block w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                </div>
-                            </div>
-                            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                <button id="download-all-videos-btn" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-primary">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                    Download All
-                                </button>
-                                <button id="delete-all-videos-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 btn-primary">
-                                    Delete All Videos
-                                </button>
-                            </div>
-                        </div>
-                        <div id="videos-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <p id="no-videos-message" class="col-span-full text-center text-gray-500 dark:text-gray-400">No videos generated yet. Start generating some!</p>
-                            <!-- Video cards will be dynamically loaded here -->
-                        </div>
-                    </div>
-                </section>
-            </main>
-        </div>
-
-        <!-- Floating Loading/Notification Popup (classList fixed) -->
-        <div id="loading-toast" class="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg flex items-center space-x-3 hidden toast dark:bg-gray-700 dark:text-gray-100">
-            <div id="loading-spinner" class="loader"></div>
-            <div>
-                <p id="toast-message" class="font-medium">Loading...</p>
-                <p id="toast-sub-message" class="text-xs text-gray-400 dark:text-gray-300"></p>
-            </div>
+            <p id="auth-error-message" class="text-red-500 text-sm text-center"></p>
         </div>
     </div>
 
-    <script>
-        // Supabase Initialization
-        const SUPABASE_URL = 'https://hdydckrgbdfqhvrxmmpi.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhkeWRja3JnYmRmcWh2cnhtbXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyNzg1NzcsImV4cCI6MjA3MTg1NDU3N30.DXqqPbAODuwJSQIkWLJTes
+    <!-- App View (Dashboard) -->
+    <div id="appView" class="min-h-screen flex hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 shadow-md flex flex-col justify-between sidebar">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">AI Video Studio</h1>
+                <nav class="space-y-2">
+                    <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="api-settings">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2v5a2 2 0 01-2 2h-2a2 2 0 01-2-2V9a2 2 0 012-2h2zM5 7a2 2 0 012 2v5a2 2 0 01-2 2H3a2 2 0 01-2-2V9a2 2 0 012-2h2zM21 7a2 2 0 012 2v5a2 2 0 01-2 2h-2a2 2 0 01-2-2V9a2 2 0 012-2h2z"></path></svg>
+                        API Settings
+                    </a>
+                    <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="prompt-generator">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Prompt Generator
+                    </a>
+                    <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="my-videos">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        My Videos
+                    </a
+                </nav>
+            </div>
+            <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+                <button id="dark-mode-toggle" class="w-full flex items-center justify-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium mb-2">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9 9 0 008.354-5.646z"></path></svg>
+                    <span id="dark-mode-text">Dark Mode</span>
+                </button>
+                <button type="button" id="logoutBtn" class="w-full flex items-center justify-center px-4 py-2 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 font-medium">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 p-8 overflow-y-auto">
+            <!-- API Settings Section -->
+            <section id="api-settings-section" class="main-section space-y-6">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-white">API Settings</h2>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">Enter your Google Cloud API key. This key is stored locally in your browser and used for all video generation requests.</p>
+                    <form id="api-key-form" class="space-y-4">
+                        <div>
+                            <label for="apiKeyInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Google Cloud API Key</label>
+                            <input type="text" id="apiKeyInput" placeholder="Enter your Google Cloud API Key" class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" id="saveApiKeyBtn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 btn-primary">
+                                Save API Key
+                            </button>
+                            <button type="button" id="deleteApiKeyBtn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 btn-primary">
+                                Delete API Key
+                            </button>
+                        </div>
+                        <p id="api-key-status" class="text-sm mt-2"></p>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Prompt Generator Section -->
+            <section id="prompt-generator-section" class="main-section hidden space-y-6">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Prompt Generator</h2>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
+                    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                        <div class="flex-1 min-w-[200px]">
+                            <label for="global-model-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">AI Model</label>
+                            <select id="global-model-select" class="block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div class="flex-1 min-w-[150px]">
+                            <label for="global-ratio-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Aspect Ratio</label>
+                            <select id="global-ratio-select" class="block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Current input for new prompts -->
+                    <div class="prompt-input-wrapper rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row gap-4 items-start sm:items-center card mb-6">
+                        <textarea
+                            id="current-prompt-input"
+                            class="block w-full px-3 py-2 border rounded-md shadow-sm bg-gray-50 dark:bg-gray-700 dark:text-white form-control"
+                            rows="2"
+                            placeholder="Enter your video prompt here and press Enter (desktop) or click '+' (mobile)..."
+                        ></textarea>
+                        <button type="button" id="add-prompt-from-input-button" class="flex-shrink-0 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 btn-primary w-full sm:w-auto">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            <span class="sr-only sm:not-sr-only ml-0 sm:ml-2">Add Prompt</span>
+                        </button>
+                    </div>
+
+
+                    <div id="prompts-list-container" class="space-y-4 mb-6">
+                        <!-- Dynamically added prompt boxes will go here -->
+                        <p id="no-active-prompts-message" class="text-center text-gray-500 dark:text-gray-400">No prompts added yet. Add one above!</p>
+                    </div>
+
+                    <button type="button" id="generate-all-prompts-button" class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 btn-primary">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c-1.105 0-2 .895-2 2s.895 2 2 2 2-.895 2-2-.895-2-2-2zm0 0H6a2 2 0 00-2 2v-3a2 2 0 012-2h3zm-6 3a2 2 0 11-4 0 2 2 0 014 0zm0 0h-3zm-6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Generate All Videos
+                    </button>
+                </div>
+            </section>
+
+            <!-- My Videos Section -->
+            <section id="my-videos-section" class="main-section hidden space-y-6">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-white">My Videos</h2>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                        <div class="relative w-full sm:w-1/2">
+                            <input type="text" id="video-search-input" placeholder="Search by prompt, model, or status..." class="block w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                            <button type="button" id="download-all-videos-btn" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring
