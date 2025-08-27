@@ -286,4 +286,1435 @@
                             </div>
                         </div>
                         <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                            <button type="button" id="download-all-videos-btn" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring
+                            <button type="button" id="download-all-videos-btn" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-primary">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Download All
+                            </button>
+                            <button type="button" id="delete-all-videos-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 btn-primary">
+                                Delete All Videos
+                            </button>
+                        </div>
+                    </div>
+                    <div id="videos-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <p id="no-videos-message" class="col-span-full text-center text-gray-500 dark:text-gray-400">No videos generated yet. Start generating some!</p>
+                        <!-- Video cards will be dynamically loaded here -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Floating Loading/Notification Toast -->
+    <div id="loading-toast" class="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg flex items-center space-x-3 hidden toast dark:bg-gray-700 dark:text-gray-100">
+        <div id="loading-spinner" class="loader"></div>
+        <div>
+            <p id="toast-message" class="font-medium">Loading...</p>
+            <p id="toast-sub-message" class="text-xs text-gray-400 dark:text-gray-300"></p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Access Supabase client initialized in the head
+        const supabase = window.supabaseClient;
+
+        // Global State
+        let currentUser = null;
+        let userApiKey = ''; // Loaded from localStorage
+        let videos = []; // Stores ALL videos (completed, failed, pending) from Supabase for 'My Videos'
+        let currentPrompts = []; // Stores prompts actively being worked on in 'Prompt Generator'
+        let currentAuthMode = 'login'; // 'login' or 'register'
+        let currentDashboardSection = 'api-settings'; // Default to API Settings
+        let isDarkMode = false;
+        let videoGenerationQueue = []; // For prompts waiting to be processed
+        let isProcessingQueue = false;
+        let isResendingConfirmation = false; // To prevent multiple resend clicks
+
+        // DOM Elements - Auth View
+        const authView = document.getElementById('authView');
+        const appView = document.getElementById('appView');
+        const authTitle = document.getElementById('auth-title');
+        const loginForm = document.getElementById('login-form');
+        const loginEmail = document.getElementById('loginEmail');
+        const loginPassword = document.getElementById('loginPassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerForm = document.getElementById('register-form');
+        const registerEmail = document.getElementById('registerEmail');
+        const registerPassword = document.getElementById('registerPassword');
+        const registerBtn = document.getElementById('registerBtn');
+        const authToggleMessage = document.getElementById('auth-toggle-message');
+        const toggleAuthModeButton = document.getElementById('toggle-auth-mode');
+        const authErrorMessage = document.getElementById('auth-error-message');
+        const authConfirmNotice = document.getElementById('auth-confirm-notice');
+        const resendConfirmationBtn = document.getElementById('resendConfirmationBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const darkModeText = document.getElementById('dark-mode-text');
+
+
+        // DOM Elements - API Settings Section
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+        const deleteApiKeyBtn = document.getElementById('deleteApiKeyBtn');
+        const apiKeyStatus = document.getElementById('api-key-status');
+
+        // DOM Elements - Prompt Generator Section
+        const globalModelSelect = document.getElementById('global-model-select');
+        const globalRatioSelect = document.getElementById('global-ratio-select');
+        const currentPromptInput = document.getElementById('current-prompt-input');
+        const addPromptFromInputButton = document.getElementById('add-prompt-from-input-button');
+        const promptsListContainer = document.getElementById('prompts-list-container');
+        const noActivePromptsMessage = document.getElementById('no-active-prompts-message');
+        const generateAllPromptsButton = document.getElementById('generate-all-prompts-button');
+
+        // DOM Elements - My Videos Section
+        const videosList = document.getElementById('videos-list');
+        const noVideosMessage = document.getElementById('no-videos-message');
+        const deleteAllVideosBtn = document.getElementById('delete-all-videos-btn');
+        const downloadAllVideosBtn = document.getElementById('download-all-videos-btn');
+        const videoSearchInput = document.getElementById('video-search-input');
+
+        // DOM Elements - Toast Notification
+        const loadingToast = document.getElementById('loading-toast');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const toastMessage = document.getElementById('toast-message');
+        const toastSubMessage = document.getElementById('toast-sub-message');
+
+        // Supported Video Models and Ratios
+        const videoModels = {
+            'Veo 2': ['16:9', '1:1', '9:16'],
+            'Veo 3': ['16:9'], // As per prompt example
+            'Veo Preview': ['16:9', '1:1'],
+            'Veo 4': ['16:9', '1:1', '9:16', '21:9'] // Hypothetical future model
+        };
+
+        const GENERATION_DELAY_MS = 10000; // 10 seconds delay between each prompt in "Generate All"
+        const RETRY_DELAY_MS = 1000; // 1-2 seconds delay between retries for a single prompt
+        const MAX_RETRIES_PER_PROMPT = 100;
+
+        // --- Utility Functions ---
+
+        /**
+         * Displays a toast notification.
+         * @param {string} message - The main message to display.
+         * @param {string} [type='info'] - 'success', 'error', 'info'.
+         * @param {string} [subMessage=''] - A secondary message.
+         */
+        function toast(message, type = 'info', subMessage = '') {
+            toastMessage.textContent = message;
+            toastSubMessage.textContent = subMessage;
+            loadingSpinner.classList.add('hidden'); // Hide spinner for simple toasts
+
+            loadingToast.classList.remove(
+                'hidden',
+                'bg-red-600', 'dark:bg-red-700',
+                'bg-green-600', 'dark:bg-green-700',
+                'bg-gray-800', 'dark:bg-gray-700',
+                'text-green-100', 'dark:text-green-100',
+                'text-red-100', 'dark:text-red-100',
+                'text-white', 'dark:text-gray-100'
+            );
+
+            toastMessage.classList.remove('text-red-100', 'text-white', 'text-green-100');
+            toastSubMessage.classList.remove('text-red-200', 'text-gray-400', 'dark:text-gray-300', 'text-green-200');
+
+            if (type === 'error') {
+                loadingToast.classList.add('bg-red-600', 'dark:bg-red-700');
+                toastMessage.classList.add('text-red-100');
+                toastSubMessage.classList.add('text-red-200');
+            } else if (type === 'success') {
+                loadingToast.classList.add('bg-green-600', 'dark:bg-green-700');
+                toastMessage.classList.add('text-green-100');
+                toastSubMessage.classList.add('text-green-200');
+            } else { // info
+                loadingToast.classList.add('bg-gray-800', 'dark:bg-gray-700');
+                toastMessage.classList.add('text-white');
+                toastSubMessage.classList.add('text-gray-400', 'dark:text-gray-300');
+            }
+
+            loadingToast.classList.add('animate-slideIn');
+            loadingToast.classList.remove('animate-slideOut');
+
+            setTimeout(() => {
+                loadingToast.classList.add('hidden');
+                loadingToast.classList.remove('animate-slideIn');
+                loadingToast.classList.add('animate-slideOut');
+            }, 3000); // 3-5s as requested, defaulting to 3s
+        }
+
+        /**
+         * Displays a loading toast that persists until explicitly hidden.
+         * @param {string} message - The main message.
+         * @param {string} [subMessage=''] - Secondary message.
+         * @param {boolean} [isError=false] - If true, styles as error.
+         * @param {boolean} [showSpinner=true] - Whether to show spinner.
+         */
+        function showLoadingToast(message, subMessage = '', isError = false, showSpinner = true) {
+            toastMessage.textContent = message;
+            toastSubMessage.textContent = subMessage;
+            if (showSpinner) {
+                loadingSpinner.classList.remove('hidden');
+            } else {
+                loadingSpinner.classList.add('hidden');
+            }
+
+            toastMessage.classList.remove('text-red-100', 'text-white', 'text-green-100');
+            toastSubMessage.classList.remove('text-red-200', 'text-gray-400', 'dark:text-gray-300', 'text-green-200');
+            loadingToast.classList.remove(
+                'hidden',
+                'bg-red-600', 'dark:bg-red-700',
+                'bg-green-600', 'dark:bg-green-700',
+                'bg-gray-800', 'dark:bg-gray-700'
+            );
+
+            if (isError) {
+                loadingToast.classList.add('bg-red-600', 'dark:bg-red-700');
+                toastMessage.classList.add('text-red-100');
+                toastSubMessage.classList.add('text-red-200');
+            } else {
+                loadingToast.classList.add('bg-gray-800', 'dark:bg-gray-700');
+                toastMessage.classList.add('text-white');
+                toastSubMessage.classList.add('text-gray-400', 'dark:text-gray-300');
+            }
+
+            loadingToast.classList.add('animate-slideIn');
+            loadingToast.classList.remove('animate-slideOut');
+        }
+
+        /**
+         * Hides the loading/notification toast (usually after showLoadingToast).
+         * @param {number} [delay=0] - Delay in milliseconds before hiding.
+         */
+        function hideLoadingToast(delay = 0) {
+            setTimeout(() => {
+                loadingToast.classList.add('hidden');
+                loadingToast.classList.remove('animate-slideIn');
+                loadingToast.classList.add('animate-slideOut');
+            }, delay);
+        }
+
+        /**
+         * Generates a unique ID (for client-side video status tracking).
+         * @returns {string}
+         */
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0,
+                    v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        /**
+         * Toggles dark/light mode.
+         */
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.classList.toggle('dark', isDarkMode);
+            document.documentElement.classList.toggle('light', !isDarkMode);
+            darkModeText.textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
+            localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+        }
+
+        /**
+         * Initializes dark mode based on local storage or system preference.
+         */
+        function initializeDarkMode() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                isDarkMode = (savedTheme === 'dark');
+            } else {
+                isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            }
+            document.documentElement.classList.toggle('dark', isDarkMode);
+            document.documentElement.classList.toggle('light', !isDarkMode);
+            darkModeText.textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
+        }
+
+        // --- Supabase Authentication ---
+
+        /**
+         * Handles user registration.
+         */
+        async function handleRegister() {
+            authErrorMessage.textContent = '';
+            const email = registerEmail.value.trim();
+            const password = registerPassword.value;
+
+            if (!email || !password) {
+                authErrorMessage.textContent = 'Email and password cannot be empty.';
+                return;
+            }
+
+            const { data, error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                authErrorMessage.textContent = 'Register failed: ' + error.message;
+                toast('Register failed: ' + error.message, 'error');
+                return;
+            }
+            toast('Register success. Check your email to confirm.', 'success');
+            // Optionally switch to login mode after successful registration
+            currentAuthMode = 'login';
+            updateAuthFormsUI();
+        }
+
+        /**
+         * Handles user login.
+         */
+        async function handleLogin() {
+            authErrorMessage.textContent = '';
+            const email = loginEmail.value.trim();
+            const password = loginPassword.value;
+
+            if (!email || !password) {
+                authErrorMessage.textContent = 'Email and password cannot be empty.';
+                return;
+            }
+
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                if (error.message && error.message.toLowerCase().includes('confirm')) {
+                    showConfirmNotice(email); // shows “Email not confirmed” + Resend link
+                }
+                authErrorMessage.textContent = 'Login failed: ' + error.message;
+                toast('Login failed: ' + error.message, 'error');
+                return;
+            }
+            toast('Login success!', 'success');
+            // onAuthStateChange will handle dashboard initialization
+        }
+
+        /**
+         * Shows the "Email not confirmed" notice and sets up resend confirmation.
+         * @param {string} email - The email to resend confirmation to.
+         */
+        function showConfirmNotice(email) {
+            authConfirmNotice.classList.remove('hidden');
+            resendConfirmationBtn.onclick = async () => {
+                if (isResendingConfirmation) return;
+                isResendingConfirmation = true;
+                toast('Resending confirmation email...', 'info', '', true);
+                const { error } = await supabase.auth.resend({ type: 'signup', email });
+                if (error) {
+                    toast('Resend failed: ' + error.message, 'error');
+                } else {
+                    toast('Confirmation email resent. Check your inbox.', 'success');
+                }
+                isResendingConfirmation = false;
+                hideLoadingToast(2000);
+            };
+        }
+
+        /**
+         * Updates the UI to show either login or register form.
+         */
+        function updateAuthFormsUI() {
+            authErrorMessage.textContent = '';
+            authConfirmNotice.classList.add('hidden');
+
+            if (currentAuthMode === 'login') {
+                authTitle.textContent = 'Login';
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                authToggleMessage.innerHTML = `Don't have an account? <a href="#" id="toggle-auth-mode" class="font-medium text-indigo-600 hover:text-indigo-500">Register</a>`;
+            } else { // register
+                authTitle.textContent = 'Register';
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                authToggleMessage.innerHTML = `Already have an account? <a href="#" id="toggle-auth-mode" class="font-medium text-indigo-600 hover:text-indigo-500">Login</a>`;
+            }
+            // Re-attach the event listener for the toggle button as its HTML is replaced
+            document.getElementById('toggle-auth-mode').addEventListener('click', toggleAuthMode);
+        }
+
+        /**
+         * Toggles between login and registration forms.
+         * @param {Event} e - The click event.
+         */
+        function toggleAuthMode(e) {
+            e.preventDefault();
+            currentAuthMode = (currentAuthMode === 'login') ? 'register' : 'login';
+            updateAuthFormsUI();
+        }
+
+        /**
+         * Handles user logout.
+         */
+        async function handleLogout() {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error('Logout failed:', error);
+                toast('Logout failed: ' + error.message, 'error');
+            } else {
+                toast('Logged out.', 'info');
+                // onAuthStateChange will handle state reset and UI switch
+            }
+        }
+
+        /**
+         * Bootstraps the application after a user is authenticated.
+         * @param {Object} user - The Supabase user object.
+         */
+        async function bootstrapAppFor(user) {
+            currentUser = user;
+            appView.classList.remove('hidden');
+            authView.classList.add('hidden');
+
+            // Initialize user profile in DB if it doesn't exist
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('id', currentUser.id)
+                .single();
+
+            if (userError && userError.code === 'PGRST116') { // No user found, create one
+                const { error: insertError } = await supabase
+                    .from('users')
+                    .insert([{ id: currentUser.id, email: currentUser.email }]);
+                if (insertError) {
+                    console.error('Error creating user profile:', insertError);
+                    toast(`Error creating user profile: ${insertError.message}`, 'error');
+                } else {
+                    console.log('User profile created successfully.');
+                }
+            } else if (userError) {
+                console.error('Error checking user profile:', userError);
+                toast(`Error checking user profile: ${userError.message}`, 'error');
+            }
+            
+            // Render dashboard sections
+            showDashboardSection(currentDashboardSection); // Will call specific loaders for sections
+        }
+
+        /**
+         * Supabase auth state change listener.
+         */
+        supabase.auth.onAuthStateChange(async (_event, session) => {
+            const isAuthed = !!session?.user;
+            if (isAuthed) {
+                await bootstrapAppFor(session.user);
+            } else {
+                currentUser = null;
+                userApiKey = '';
+                videos = [];
+                currentPrompts = [];
+                authView.classList.remove('hidden');
+                appView.classList.add('hidden');
+                updateAuthFormsUI(); // Ensure correct auth form is visible
+            }
+        });
+
+        // --- Dashboard UI Management ---
+
+        /**
+         * Navigates to a specific dashboard section.
+         * @param {string} sectionId - The ID of the section to show (e.g., 'api-settings-section').
+         */
+        function showDashboardSection(sectionId) {
+            document.querySelectorAll('.main-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(`${sectionId}-section`).classList.remove('hidden');
+            currentDashboardSection = sectionId;
+
+            // Update active state in sidebar
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('bg-indigo-100', 'dark:bg-indigo-700', 'text-indigo-700', 'dark:text-indigo-100');
+                item.classList.add('text-gray-700', 'dark:text-gray-300');
+            });
+            const activeNavItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+            if (activeNavItem) {
+                activeNavItem.classList.add('bg-indigo-100', 'dark:bg-indigo-700', 'text-indigo-700', 'dark:text-indigo-100');
+                activeNavItem.classList.remove('text-gray-700', 'dark:text-gray-300');
+            }
+
+            // Specific refresh/load logic for sections
+            if (sectionId === 'my-videos') {
+                fetchUserVideos();
+            } else if (sectionId === 'api-settings') {
+                loadUserApiKey();
+            } else if (sectionId === 'prompt-generator') {
+                populateGlobalSelects(); // Ensure global selects are populated
+                loadUserPrompts(); // Load existing prompts when navigating to this section
+            }
+        }
+
+        // --- API Key Management ---
+
+        /**
+         * Fetches and displays the user's saved Google Cloud API key from localStorage.
+         */
+        async function loadUserApiKey() {
+            if (!currentUser) {
+                apiKeyInput.value = '';
+                userApiKey = '';
+                apiKeyStatus.textContent = 'Please log in to manage API Key.';
+                apiKeyStatus.classList.remove('text-green-500');
+                apiKeyStatus.classList.add('text-red-500');
+                apiKeyInput.classList.remove('masked-input'); // Ensure not masked if no user
+                return;
+            }
+
+            const storedApiKey = localStorage.getItem('gcloud_api_key');
+            if (storedApiKey) {
+                apiKeyInput.value = storedApiKey;
+                apiKeyInput.classList.add('masked-input'); // Mask if present
+                userApiKey = storedApiKey;
+                apiKeyStatus.textContent = 'API Key loaded from local storage.';
+                apiKeyStatus.classList.remove('text-red-500');
+                apiKeyStatus.classList.add('text-green-500');
+            } else {
+                // If not in localStorage, check Supabase
+                try {
+                    const { data, error } = await supabase
+                        .from('users')
+                        .select('api_key')
+                        .eq('id', currentUser.id)
+                        .single();
+
+                    if (error && error.code !== 'PGRST116') throw error; // PGRST116 means no row found
+                    
+                    if (data && data.api_key) {
+                        localStorage.setItem('gcloud_api_key', data.api_key); // Store in local storage for future quick access
+                        apiKeyInput.value = data.api_key;
+                        apiKeyInput.classList.add('masked-input');
+                        userApiKey = data.api_key;
+                        apiKeyStatus.textContent = 'API Key loaded from database.';
+                        apiKeyStatus.classList.remove('text-red-500');
+                        apiKeyStatus.classList.add('text-green-500');
+                    } else {
+                        apiKeyInput.value = '';
+                        apiKeyInput.classList.remove('masked-input');
+                        userApiKey = '';
+                        apiKeyStatus.textContent = 'No API Key found. Please add one.';
+                        apiKeyStatus.classList.remove('text-green-500');
+                        apiKeyStatus.classList.add('text-red-500');
+                    }
+                } catch (error) {
+                    console.error('Error loading API key from DB:', error);
+                    apiKeyStatus.textContent = `Error loading API key: ${error.message}`;
+                    apiKeyStatus.classList.remove('text-green-500');
+                    apiKeyStatus.classList.add('text-red-500');
+                }
+            }
+        }
+
+        /**
+         * Saves or updates the user's Google Cloud API key in localStorage and Supabase.
+         * @param {Event} e - The form submission event.
+         */
+        async function handleApiKeyFormSubmit() {
+            if (!currentUser) {
+                toast('Please log in to save API Key.', 'error');
+                return;
+            }
+            const newApiKey = apiKeyInput.value.trim();
+            if (!newApiKey) {
+                apiKeyStatus.textContent = 'API Key cannot be empty.';
+                apiKeyStatus.classList.remove('text-green-500');
+                apiKeyStatus.classList.add('text-red-500');
+                return;
+            }
+
+            showLoadingToast('Saving API Key...', '', false, true);
+            try {
+                // Save to localStorage
+                localStorage.setItem('gcloud_api_key', newApiKey);
+                userApiKey = newApiKey;
+
+                // Save to Supabase users table
+                const { error } = await supabase
+                    .from('users')
+                    .upsert({ id: currentUser.id, api_key: newApiKey }, { onConflict: 'id' });
+
+                if (error) throw error;
+
+                apiKeyInput.classList.add('masked-input');
+                apiKeyStatus.textContent = 'API Key saved successfully!';
+                apiKeyStatus.classList.remove('text-red-500');
+                apiKeyStatus.classList.add('text-green-500');
+                toast('API Key saved successfully.', 'success');
+            } catch (error) {
+                console.error('Error saving API key:', error);
+                apiKeyStatus.textContent = `Error saving API key: ${error.message}`;
+                apiKeyStatus.classList.remove('text-green-500');
+                apiKeyStatus.classList.add('text-red-500');
+                toast(`Error saving API key: ${error.message}`, 'error');
+            } finally {
+                hideLoadingToast();
+            }
+        }
+
+        /**
+         * Deletes the API key from localStorage and Supabase.
+         */
+        async function handleDeleteApiKey() {
+            if (!currentUser) {
+                toast('Please log in to delete API Key.', 'error');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete your API Key?')) return;
+
+            showLoadingToast('Deleting API Key...', '', false, true);
+            try {
+                // Remove from localStorage
+                localStorage.removeItem('gcloud_api_key');
+                userApiKey = '';
+
+                // Remove from Supabase users table
+                const { error } = await supabase
+                    .from('users')
+                    .update({ api_key: null })
+                    .eq('id', currentUser.id);
+
+                if (error) throw error;
+
+                apiKeyInput.value = '';
+                apiKeyInput.classList.remove('masked-input');
+                apiKeyStatus.textContent = 'API Key deleted.';
+                apiKeyStatus.classList.remove('text-green-500');
+                apiKeyStatus.classList.add('text-red-500');
+                toast('API Key deleted successfully.', 'info');
+            } catch (error) {
+                console.error('Error deleting API key:', error);
+                apiKeyStatus.textContent = `Error deleting API key: ${error.message}`;
+                apiKeyStatus.classList.remove('text-green-500');
+                apiKeyStatus.classList.add('text-red-500');
+                toast(`Error deleting API key: ${error.message}`, 'error');
+            } finally {
+                hideLoadingToast();
+            }
+        }
+
+        // --- Video Generation Logic (Simulated Google Cloud API) ---
+
+        /**
+         * Populates the global model and ratio dropdowns.
+         */
+        function populateGlobalSelects() {
+            const modelsHtml = Object.keys(videoModels).map(model => `<option value="${model}">${model}</option>`).join('');
+            globalModelSelect.innerHTML = modelsHtml;
+
+            // Initially populate ratio for the default selected model
+            updateGlobalRatioOptions();
+        }
+
+        /**
+         * Updates global ratio options based on selected model.
+         */
+        function updateGlobalRatioOptions() {
+            const selectedModel = globalModelSelect.value;
+            const ratios = videoModels[selectedModel] || [];
+            globalRatioSelect.innerHTML = ratios.map(ratio => `
+                <option value="${ratio}" ${ratio === '16:9' ? 'selected' : ''}>${ratio}</option>
+            `).join('');
+        }
+
+        /**
+         * Simulates a Google Cloud Veo API call with retries.
+         * @param {string} promptText - The video prompt text.
+         * @param {string} model - The selected model.
+         * @param {string} ratio - The selected aspect ratio.
+         * @param {string} apiKey - The user's Google Cloud API key.
+         * @param {string} clientPromptId - The client-side ID for this prompt (for tracking).
+         * @returns {Promise<Object>} - A promise that resolves with video data or rejects with an error.
+         */
+        async function simulateGoogleCloudVideoGeneration(promptText, model, ratio, apiKey, clientPromptId) {
+            if (!apiKey || apiKey === 'INVALID_KEY_SIMULATION') {
+                throw new Error('Invalid Google Cloud API Key.');
+            }
+
+            for (let attempt = 1; attempt <= MAX_RETRIES_PER_PROMPT; attempt++) {
+                try {
+                    // Simulate API call delay
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + RETRY_DELAY_MS)); // 1-2 seconds delay
+
+                    // Simulate success or failure
+                    const shouldFail = Math.random() < 0.2 && attempt < MAX_RETRIES_PER_PROMPT; // 20% chance of temporary failure
+                    if (shouldFail) {
+                        throw new Error(`Temporary API error.`);
+                    }
+
+                    // Simulate success
+                    const videoUrl = `https://example.com/videos/${clientPromptId}.mp4`; // Dummy URL
+                    return {
+                        prompt: promptText,
+                        model: model,
+                        ratio: ratio,
+                        status: 'Completed',
+                        video_url: videoUrl,
+                        created_at: new Date().toISOString()
+                    };
+
+                } catch (error) {
+                    if (error.message.includes('Invalid Google Cloud API Key.')) {
+                        throw error; // Propagate invalid API key error immediately
+                    }
+                    if (attempt === MAX_RETRIES_PER_PROMPT) {
+                        throw new Error(`Failed after ${MAX_RETRIES_PER_PROMPT} attempts: ${error.message}`);
+                    }
+                    console.warn(`Attempt ${attempt}/${MAX_RETRIES_PER_PROMPT} failed for prompt "${promptText}". Retrying...`);
+                    // Update specific prompt status in UI
+                    const promptIndex = currentPrompts.findIndex(p => p.id === clientPromptId);
+                    if (promptIndex !== -1) {
+                        currentPrompts[promptIndex].status = 'Processing';
+                        currentPrompts[promptIndex].retryAttempt = attempt;
+                        renderPrompts(); // Re-render to show retry progress
+                    }
+                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+                }
+            }
+        }
+
+        /**
+         * Handles the video generation process for a single prompt, including Supabase storage.
+         * @param {string} clientPromptId - The client-side ID of the prompt to process.
+         */
+        async function processSinglePromptGeneration(clientPromptId) {
+            const promptDataIndex = currentPrompts.findIndex(p => p.id === clientPromptId);
+            if (promptDataIndex === -1) return;
+
+            const promptData = currentPrompts[promptDataIndex];
+
+            // Pre-checks for API key and user, should be done before adding to queue
+            if (!currentUser) {
+                promptData.status = 'Failed';
+                promptData.error = 'User not logged in.';
+                renderPrompts();
+                toast('Please log in to generate videos.', 'error');
+                return;
+            }
+            if (!userApiKey) {
+                promptData.status = 'Failed';
+                promptData.error = 'No API key provided. Please set it in API Settings.';
+                renderPrompts();
+                toast('Please save your Google Cloud API key first in API Settings.', 'error');
+                return;
+            }
+            if (!promptData.prompt.trim()) {
+                promptData.status = 'Failed';
+                promptData.error = 'Prompt text cannot be empty.';
+                renderPrompts();
+                toast('Prompt text cannot be empty to generate.', 'error');
+                return;
+            }
+
+            promptData.status = 'Processing';
+            promptData.error = null; // Clear previous errors
+            promptData.retryAttempt = 0;
+            promptData.isEditing = false; // Ensure it's not editable during processing
+            renderPrompts(); // Update UI to 'Processing' immediately
+
+            // First, ensure this prompt exists in Supabase. If not, insert it.
+            let videoRecordId = promptData.dbId;
+            if (!videoRecordId) {
+                const { data, error } = await supabase
+                    .from('videos')
+                    .insert([{
+                        user_id: currentUser.id,
+                        prompt: promptData.prompt,
+                        model: promptData.model,
+                        ratio: promptData.ratio,
+                        status: 'Pending',
+                        video_url: null
+                    }])
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('Error saving pending video to Supabase:', error);
+                    promptData.status = 'Failed';
+                    promptData.error = `Failed to save pending video: ${error.message}`;
+                    renderPrompts();
+                    return;
+                }
+                videoRecordId = data.id;
+                promptData.dbId = videoRecordId; // Update client-side prompt with actual DB ID
+            } else {
+                 // If it already has a dbId, update its status to 'Pending' in Supabase
+                await supabase
+                    .from('videos')
+                    .update({ status: 'Pending', video_url: null })
+                    .eq('id', videoRecordId);
+            }
+            renderPrompts(); // Re-render to ensure dbId is reflected if newly set
+
+
+            try {
+                const generatedVideoData = await simulateGoogleCloudVideoGeneration(promptData.prompt, promptData.model, promptData.ratio, userApiKey, clientPromptId);
+
+                // Update Supabase with 'Completed' status and video_url
+                const { error: updateError } = await supabase
+                    .from('videos')
+                    .update({
+                        status: 'Completed',
+                        video_url: generatedVideoData.video_url,
+                        created_at: generatedVideoData.created_at
+                    })
+                    .eq('id', videoRecordId);
+
+                if (updateError) throw updateError;
+
+                // Update client-side prompt data
+                promptData.status = 'Completed';
+                promptData.video_url = generatedVideoData.video_url;
+                promptData.created_at = generatedVideoData.created_at;
+                promptData.retryAttempt = 0;
+                renderPrompts();
+                fetchUserVideos(); // Refresh 'My Videos' list with the new video
+                toast(`Video for "${promptData.prompt.substring(0, 30)}..." generated!`, 'success');
+
+            } catch (error) {
+                console.error('Video generation failed:', error);
+                // Update Supabase with 'Failed' status
+                if (videoRecordId) {
+                    await supabase
+                        .from('videos')
+                        .update({ status: 'Failed', video_url: null }) // Clear video_url on failure
+                        .eq('id', videoRecordId);
+                }
+
+                // Update client-side prompt data
+                promptData.status = 'Failed';
+                promptData.error = error.message;
+                promptData.retryAttempt = 0;
+                renderPrompts();
+                toast(`Video generation failed for "${promptData.prompt.substring(0, 30)}...": ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Manages the video generation queue.
+         */
+        async function processVideoQueue() {
+            isProcessingQueue = true;
+            generateAllPromptsButton.disabled = true; // Disable "Generate All" button
+            
+            let totalQueued = videoGenerationQueue.length;
+            let processedCount = 0;
+
+            while (videoGenerationQueue.length > 0) {
+                const clientPromptId = videoGenerationQueue[0]; // Peek at the next item
+                const prompt = currentPrompts.find(p => p.id === clientPromptId);
+                
+                // Only process if prompt still exists and is not already done/failed
+                if (prompt && (prompt.status === 'Queued' || prompt.status === 'Processing')) {
+                    processedCount++;
+                    showLoadingToast(
+                        `Processing video ${processedCount}/${totalQueued} in queue`,
+                        `Generating for "${prompt.prompt.substring(0, 50)}..."`,
+                        false, true
+                    );
+                    await processSinglePromptGeneration(clientPromptId);
+                    videoGenerationQueue.shift(); // Remove only after processing
+                    // Add delay *before* starting the next prompt, but not after the last one
+                    if (videoGenerationQueue.length > 0) {
+                        await new Promise(resolve => setTimeout(resolve, GENERATION_DELAY_MS));
+                    }
+                } else {
+                    // If prompt was deleted or completed while in queue, just remove it
+                    videoGenerationQueue.shift();
+                }
+            }
+            isProcessingQueue = false;
+            generateAllPromptsButton.disabled = false; // Re-enable "Generate All" button
+            hideLoadingToast(); // Hide final loading toast
+            toast('All queued videos processed!', 'success');
+        }
+
+        // --- Prompt Generator Section Functions ---
+
+        /**
+         * Loads existing prompts from Supabase that are not yet "Completed" or "Failed"
+         * and adds them to the dynamic prompts section. Also adds a default empty prompt.
+         */
+        async function loadUserPrompts() {
+            if (!currentUser) {
+                currentPrompts = [];
+                addPromptToGeneratorList(''); // Always show at least one empty prompt box initially
+                renderPrompts(); // Render to display empty prompt
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('videos')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .in('status', ['Pending', 'Processing']) // Load prompts still in progress
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                // Map Supabase video data to client-side prompt structure
+                const loadedPrompts = data.map(video => ({
+                    id: generateUUID(), // Client-side ID for UI manipulation
+                    dbId: video.id, // Supabase DB ID
+                    prompt: video.prompt,
+                    model: video.model,
+                    ratio: video.ratio,
+                    status: video.status === 'Pending' ? 'Queued' : 'Processing', // Adjust status for client-side
+                    video_url: video.video_url,
+                    created_at: video.created_at,
+                    isEditing: false, // Not editable if loaded as processing
+                    retryAttempt: 0,
+                    error: null
+                }));
+
+                currentPrompts = loadedPrompts;
+
+                // If no pending prompts, add an empty one.
+                if (currentPrompts.length === 0) {
+                    addPromptToGeneratorList(''); // Add a blank prompt at the top if none are pending
+                }
+
+                renderPrompts();
+
+                // If there are prompts in 'Processing' or 'Queued' state from previous session, restart processing
+                const queuedFromLoad = currentPrompts.filter(p => p.status === 'Queued' || p.status === 'Processing').map(p => p.id);
+                if (queuedFromLoad.length > 0) {
+                    showLoadingToast(`Resuming ${queuedFromLoad.length} video generations...`);
+                    videoGenerationQueue.push(...queuedFromLoad);
+                    if (!isProcessingQueue) {
+                        processVideoQueue();
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error loading user prompts:', error);
+                toast(`Error loading your pending prompts: ${error.message}`, 'error');
+                currentPrompts = []; // Clear any potentially corrupted state
+                addPromptToGeneratorList(''); // Ensure a prompt box is available even on error
+                renderPrompts();
+            }
+        }
+
+
+        /**
+         * Adds a prompt from the global input box to the currentPrompts array and updates the UI.
+         * @param {string|null} initialPromptText - Optional text to pre-fill the prompt.
+         * @param {boolean} [focus=true] - Whether to focus the new prompt's textarea.
+         */
+        function addPromptToGeneratorList(initialPromptText = '', focus = true) {
+            const newPrompt = {
+                id: generateUUID(),
+                dbId: null, // Will be set after initial Supabase insert
+                prompt: initialPromptText,
+                model: globalModelSelect.value,
+                ratio: globalRatioSelect.value,
+                status: initialPromptText.trim() === '' ? 'Ready' : 'Idle',
+                video_url: null,
+                created_at: new Date().toISOString(),
+                isEditing: initialPromptText.trim() === '', // New empty prompts start in edit mode
+                retryAttempt: 0,
+                error: null
+            };
+            currentPrompts.unshift(newPrompt); // Add to the beginning of the list
+            renderPrompts(focus ? newPrompt.id : null); // Render and focus on the new prompt
+            if (promptsListContainer.contains(noActivePromptsMessage)) {
+                noActivePromptsMessage.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Adds a prompt from the `current-prompt-input` text area.
+         */
+        function addPromptFromGlobalInput() {
+            const promptText = currentPromptInput.value.trim();
+            if (promptText) {
+                addPromptToGeneratorList(promptText);
+                currentPromptInput.value = ''; // Clear the input box
+            } else {
+                // If the global input is empty and no other prompts exist, add an empty prompt box below.
+                // Or if it's explicitly asked for (e.g., from an 'Add' button)
+                toast("Please enter a prompt.", 'info');
+            }
+        }
+
+        /**
+         * Renders all prompt boxes in the UI.
+         * @param {string|null} focusPromptId - ID of the prompt to focus its textarea after rendering.
+         */
+        function renderPrompts(focusPromptId = null) {
+            promptsListContainer.innerHTML = '';
+            if (currentPrompts.length === 0) {
+                noActivePromptsMessage.classList.remove('hidden');
+            } else {
+                noActivePromptsMessage.classList.add('hidden');
+            }
+
+            currentPrompts.forEach(prompt => {
+                const promptBox = document.createElement('div');
+                promptBox.id = `prompt-box-${prompt.id}`;
+                promptBox.classList.add('prompt-input-wrapper', 'rounded-lg', 'shadow-sm', 'p-4', 'border', 'flex', 'flex-col', 'sm:flex-row', 'gap-4', 'items-start', 'sm:items-center', 'card');
+
+                let statusColorClass = 'text-gray-500';
+                let statusText = prompt.status;
+                let spinnerHtml = '';
+                let editButtonDisabled = false;
+                let deleteButtonDisabled = false;
+
+                if (prompt.status === 'Ready') {
+                    statusText = 'Ready';
+                    statusColorClass = 'text-gray-500';
+                } else if (prompt.status === 'Idle') {
+                    statusText = 'Idle';
+                    statusColorClass = 'text-gray-500';
+                } else if (prompt.status === 'Queued') {
+                    statusText = 'Queued';
+                    statusColorClass = 'text-blue-500';
+                    editButtonDisabled = true;
+                    deleteButtonDisabled = true;
+                } else if (prompt.status === 'Processing') {
+                    statusText = `Processing (${prompt.retryAttempt}/${MAX_RETRIES_PER_PROMPT})`;
+                    statusColorClass = 'text-yellow-600';
+                    spinnerHtml = '<div class="loader !w-4 !h-4 !border-2 mr-2"></div>';
+                    editButtonDisabled = true;
+                    deleteButtonDisabled = true;
+                } else if (prompt.status === 'Completed') {
+                    statusText = 'Completed';
+                    statusColorClass = 'text-green-600';
+                    editButtonDisabled = true;
+                } else if (prompt.status === 'Failed') {
+                    statusText = `Failed: ${prompt.error || 'Unknown error'}`;
+                    statusColorClass = 'text-red-600';
+                    editButtonDisabled = false; // Allow editing failed prompts
+                }
+
+                const textareaDisabled = !prompt.isEditing || editButtonDisabled || prompt.status === 'Completed';
+
+                promptBox.innerHTML = `
+                    <div class="flex-1 w-full space-y-2">
+                        <textarea
+                            id="prompt-input-${prompt.id}"
+                            class="block w-full px-3 py-2 border rounded-md shadow-sm bg-gray-50 dark:bg-gray-700 dark:text-white form-control ${textareaDisabled ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ''}"
+                            rows="2"
+                            placeholder="Enter your video prompt here..."
+                            data-prompt-id="${prompt.id}"
+                            ${textareaDisabled ? 'disabled' : ''}
+                        >${prompt.prompt}</textarea>
+                        <div class="flex flex-wrap items-center text-xs text-gray-600 dark:text-gray-400 gap-x-3 gap-y-1">
+                            <span class="flex items-center ${statusColorClass} dark:${statusColorClass.replace('text-', 'text-')}-dark">
+                                ${spinnerHtml}
+                                <span>Status: ${statusText}</span>
+                            </span>
+                            <span>Model: ${prompt.model}</span>
+                            <span>Ratio: ${prompt.ratio}</span>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
+                        <button type="button"
+                            class="action-edit-prompt-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${prompt.isEditing ? 'bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600'} btn-primary ${editButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
+                            data-prompt-id="${prompt.id}"
+                            ${editButtonDisabled ? 'disabled' : ''}
+                        >
+                            ${prompt.isEditing ? 'Save' : 'Edit'}
+                        </button>
+                        ${prompt.video_url ? `
+                        <a href="${prompt.video_url}" download="${prompt.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.mp4" class="inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600 btn-primary">
+                            Download
+                        </a>
+                        ` : ''}
+                        <button type="button"
+                            class="action-delete-prompt-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 btn-primary ${deleteButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
+                            data-prompt-id="${prompt.id}"
+                            ${deleteButtonDisabled ? 'disabled' : ''}
+                        >
+                            Delete
+                        </button>
+                    </div>
+                `;
+                promptsListContainer.appendChild(promptBox);
+            });
+
+            // Re-enable/disable Generate All button based on current prompts state
+            const hasGeneratablePrompts = currentPrompts.some(p => (p.status === 'Idle' || p.status === 'Failed') && p.prompt.trim() !== '');
+            generateAllPromptsButton.disabled = isProcessingQueue || !hasGeneratablePrompts || !userApiKey; // Also disable if no API key
+
+
+            // Attach event listeners after rendering
+            currentPrompts.forEach(prompt => {
+                const textarea = document.getElementById(`prompt-input-${prompt.id}`);
+                if (textarea) {
+                    textarea.addEventListener('input', (e) => handlePromptListItemInput(e, prompt.id));
+                    if (prompt.id === focusPromptId && prompt.isEditing) {
+                        textarea.focus();
+                        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                    }
+                }
+                document.querySelector(`#prompt-box-${prompt.id} .action-edit-prompt-btn`)?.addEventListener('click', () => handleEditButtonClick(prompt.id));
+                document.querySelector(`#prompt-box-${prompt.id} .action-delete-prompt-btn`)?.addEventListener('click', () => handleDeletePrompt(prompt.id));
+            });
+        }
+
+        function handlePromptListItemInput(e, promptId) {
+            const promptIndex = currentPrompts.findIndex(p => p.id === promptId);
+            if (promptIndex !== -1) {
+                currentPrompts[promptIndex].prompt = e.target.value;
+                if (currentPrompts[promptIndex].status === 'Ready' && e.target.value.trim() !== '') {
+                    currentPrompts[promptIndex].status = 'Idle';
+                } else if (currentPrompts[promptIndex].status === 'Idle' && e.target.value.trim() === '') {
+                    currentPrompts[promptIndex].status = 'Ready';
+                }
+                renderPrompts(null); // Re-render to update generateAll button status if needed
+            }
+        }
+
+        function handleCurrentPromptInputKeydown(e) {
+            if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) { // Desktop, not Shift+Enter
+                e.preventDefault(); // Prevent new line in textarea
+                addPromptFromGlobalInput();
+            }
+        }
+
+        function handleGenerateAllButtonClick() {
+            if (!userApiKey) {
+                toast('Please save your Google Cloud API key first in API Settings.', 'error');
+                return;
+            }
+
+            const promptsToQueue = currentPrompts.filter(p => (p.status === 'Idle' || p.status === 'Failed') && p.prompt.trim() !== '');
+
+            if (promptsToQueue.length === 0) {
+                toast('No new or failed prompts to generate.', 'info');
+                return;
+            }
+
+            toast(`Adding ${promptsToQueue.length} prompts to queue...`, 'info');
+            promptsToQueue.forEach(prompt => {
+                prompt.status = 'Queued';
+                prompt.isEditing = false; // Lock for editing once queued
+                videoGenerationQueue.push(prompt.id);
+            });
+            renderPrompts(); // Update UI to 'Queued' state
+
+            if (!isProcessingQueue) {
+                processVideoQueue();
+            }
+        }
+
+        function handleEditButtonClick(promptId) {
+            const promptIndex = currentPrompts.findIndex(p => p.id === promptId);
+            if (promptIndex !== -1) {
+                const prompt = currentPrompts[promptIndex];
+                if (prompt.status === 'Processing' || prompt.status === 'Queued' || prompt.status === 'Completed') {
+                    toast(`Cannot edit a prompt that is ${prompt.status.toLowerCase()}.`, 'error');
+                    return;
+                }
+
+                // Toggle editing mode
+                prompt.isEditing = !prompt.isEditing;
+                
+                // If exiting edit mode (Save button clicked)
+                if (!prompt.isEditing) {
+                    // If the prompt became empty after editing, delete it.
+                    if (!prompt.prompt.trim()) {
+                        toast('Prompt cannot be empty. Deleting empty prompt.', 'info', 'Automatically deleting empty prompt.');
+                        handleDeletePrompt(prompt.id); // Delete if it was saved empty
+                        return;
+                    }
+                    // If it had a dbId and content changed, we might want to update it in DB
+                    // (though for prompts being generated, this is handled by the process logic)
+                }
+                renderPrompts(prompt.isEditing ? prompt.id : null); // Re-render and focus on the textarea if in edit mode
+            }
+        }
+
+        async function handleDeletePrompt(promptId) {
+            const promptIndex = currentPrompts.findIndex(p => p.id === promptId);
+            if (promptIndex === -1) return;
+
+            const prompt = currentPrompts[promptIndex];
+
+            if (prompt.status === 'Processing' || prompt.status === 'Queued') {
+                toast('Cannot delete a prompt that is currently being processed or is queued.', 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete the prompt "${prompt.prompt.substring(0, 50)}..."?`)) return;
+
+            showLoadingToast('Deleting prompt...', '', false, true);
+            try {
+                if (prompt.dbId) {
+                    // If it was already saved to Supabase, delete it from there
+                    const { error } = await supabase
+                        .from('videos')
+                        .delete()
+                        .eq('id', prompt.dbId);
+                    if (error) throw error;
+                }
+
+                currentPrompts.splice(promptIndex, 1); // Remove from client-side array
+                renderPrompts(); // Re-render to update the list
+                toast('Prompt deleted successfully.', 'success');
+            } catch (error) {
+                console.error('Error deleting prompt:', error);
+                toast(`Error deleting prompt: ${error.message}`, 'error');
+            } finally {
+                hideLoadingToast();
+            }
+        }
+
+        // --- My Videos Section ---
+
+        /**
+         * Fetches and renders the current user's videos.
+         */
+        async function fetchUserVideos() {
+            if (!currentUser) {
+                videosList.innerHTML = '';
+                noVideosMessage.classList.remove('hidden');
+                return;
+            }
+
+            showLoadingToast('Loading your videos...', '', false, true);
+            try {
+                const { data, error } = await supabase
+                    .from('videos')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                videos = data; // Store all videos from Supabase
+                renderVideos(videos); // Render the complete list
+                hideLoadingToast();
+            } catch (error) {
+                console.error('Error fetching videos:', error);
+                toast(`Error loading videos: ${error.message}`, 'error');
+                hideLoadingToast();
+            }
+        }
+
+        /**
+         * Renders the list of videos in the "My Videos" section.
+         * @param {Array<Object>} videosToRender - The array of video objects to render.
+         */
+        function renderVideos(videosToRender) {
+            videosList.innerHTML = '';
+            // Filter out 'Pending' or 'Processing' videos from this list, as they are managed in prompt-generator-section
+            const completedOrFailedVideos = videosToRender.filter(v => v.status === 'Completed' || v.status === 'Failed');
+
+            if (completedOrFailedVideos.length === 0) {
+                noVideosMessage.classList.remove('hidden');
+                deleteAllVideosBtn.classList.add('hidden');
+                downloadAllVideosBtn.classList.add('hidden');
+                return;
+            }
+            noVideosMessage.classList.add('hidden');
+            deleteAllVideosBtn.classList.remove('hidden');
+            
+            const hasDownloadableVideos = completedOrFailedVideos.some(v => v.status === 'Completed' && v.video_url);
+            if (hasDownloadableVideos) {
+                downloadAllVideosBtn.classList.remove('hidden');
+            } else {
+                downloadAllVideosBtn.classList.add('hidden');
+            }
+
+            completedOrFailedVideos.forEach(video => {
+                const videoCard = document.createElement('div');
+                videoCard.classList.add('bg-gray-50', 'dark:bg-gray-700', 'p-4', 'rounded-lg', 'shadow-sm', 'border', 'border-gray-200', 'dark:border-gray-600', 'space-y-3', 'card');
+
+                let statusColor = 'text-gray-500';
+                let statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                let videoContent = '';
+                let downloadButtonHtml = '';
+
+                if (video.status === 'Completed') {
+                    statusColor = 'text-green-600';
+                    statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                    videoContent = `<video controls src="${video.video_url}" class="w-full h-auto rounded-md mb-2"></video>`;
+                    downloadButtonHtml = `
+                        <a href="${video.video_url}" download="${video.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.mp4" class="individual-download-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 w-full mt-2 btn-primary">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Download
+                        </a>
+                    `;
+                } else if (video.status === 'Failed') {
+                    statusColor = 'text-red-600';
+                    statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                    videoContent = `<p class="text-red-500 text-sm mt-2">Error: ${video.error || 'Unknown error'}</p>`;
+                }
+
+
+                videoCard.innerHTML = `
+                    <h3 class="font-semibold text-lg text-gray-900 dark:text-white">${video.prompt}</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Model: ${video.model} | Ratio: ${video.ratio}</p>
+                    <div class="flex items-center text-sm ${statusColor} dark:${statusColor.replace('text-', 'text-')}-dark">
+                        ${statusIcon}
+                        <span>Status: ${video.status}</span>
+                    </div>
+                    ${videoContent}
+                    ${downloadButtonHtml}
+                    <button type="button" class="delete-video-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 w-full btn-primary" data-db-id="${video.id}">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        Delete
+                    </button>
+                `;
+                videosList.appendChild(videoCard);
+            });
+
+            // Attach event listeners for newly rendered delete buttons
+            document.querySelectorAll('.delete-video-btn').forEach(button => {
+                button.addEventListener('click', handleDeleteVideo);
+            });
+        }
+
+        /**
+         * Filters the video list based on search input.
+         * @param {Event} e - The input event.
+         */
+        function filterVideos(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            // Filter the full 'videos' array, not just the currently rendered ones
+            const filtered = videos.filter(video =>
+                (video.prompt && video.prompt.toLowerCase().includes(searchTerm)) ||
+                (video.model && video.model.toLowerCase().includes(searchTerm)) ||
+                (video.status && video.status.toLowerCase().includes(searchTerm))
+            );
+            renderVideos(filtered);
+        }
+
+        /**
+         * Deletes a single video from Supabase and the UI.
+         * @param {Event} e - The click event.
+         */
+        async function handleDeleteVideo(e) {
+            const dbId = e.currentTarget.dataset.dbId; // Use data-db-id for Supabase ID
+            if (!dbId) return;
+
+            if (!confirm('Are you sure you want to delete this video?')) return;
+
+            showLoadingToast('Deleting video...', '', false, true);
+            try {
+                const { error } = await supabase
+                    .from('videos')
+                    .delete()
+                    .eq('id', dbId);
+
+                if (error) throw error;
+
+                videos = videos.filter(video => video.id !== dbId); // Remove from local state
+                renderVideos(videos); // Re-render the filtered list (My Videos section)
+                fetchUserVideos(); // Ensure the master video list is refreshed (re-hides/shows download all)
+                toast('Video deleted successfully.', 'success');
+            } catch (error) {
+                console.error('Error deleting video:', error);
+                toast(`Error deleting video: ${error.message}`, 'error');
+            } finally {
+                hideLoadingToast();
+            }
+        }
+
+        /**
+         * Deletes all videos for the current user.
+         */
+        async function handleDeleteAllVideos() {
+            if (!currentUser) return;
+
+            if (!confirm('Are you sure you want to delete ALL your videos? This action cannot be undone.')) return;
+
+            showLoadingToast('Deleting all videos...', '', false, true);
+            try {
+                const { error } = await supabase
+                    .from('videos')
+                    .delete()
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+
+                videos = []; // Clear all videos from local state
+                renderVideos(videos); // Re-render the empty list
+                toast('All videos deleted successfully.', 'success');
+            } catch (error) {
+                console.error('Error deleting all videos:', error);
+                toast(`Error deleting all videos: ${error.message}`, 'error');
+            } finally {
+                hideLoadingToast();
+            }
+        }
+
+        /**
+         * Initiates download for all completed videos.
+         */
+        async function handleDownloadAllVideos() {
+            const completedVideos = videos.filter(v => v.status === 'Completed' && v.video_url);
+
+            if (completedVideos.length === 0) {
+                toast('No completed videos to download.', 'info');
+                return;
+            }
+
+            toast(`Initiating download for ${completedVideos.length} videos...`, 'info', 'Check your browser downloads.');
+
+            for (const video of completedVideos) {
+                try {
+                    const link = document.createElement('a');
+                    link.href = video.video_url;
+                    link.download = `${video.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.mp4`; // Sanitize filename
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between downloads
+                } catch (error) {
+                    console.error('Error downloading video:', video.id, error);
+                    // Continue with other downloads even if one fails
+                }
+            }
+            hideLoadingToast(3000); // Hide toast after initiating all downloads
+        }
+
+
+        // --- Initialization ---
+
+        /**
+         * Initial setup when the page loads.
+         */
+        document.addEventListener('DOMContentLoaded', async () => {
+            initializeDarkMode();
+
+            // Set up event listeners for auth forms
+            loginBtn.addEventListener('click', handleLogin);
+            registerBtn.addEventListener('click', handleRegister);
+            toggleAuthModeButton.addEventListener('click', toggleAuthMode);
+            // resendConfirmationBtn listener is attached dynamically in showConfirmNotice
+
+            // Set up event listeners for dashboard
+            logoutBtn.addEventListener('click', handleLogout);
+            darkModeToggle.addEventListener('click', toggleDarkMode);
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showDashboardSection(e.currentTarget.dataset.section);
+                });
+            });
+
+            // API Settings listeners
+            saveApiKeyBtn.addEventListener('click', handleApiKeyFormSubmit);
+            deleteApiKeyBtn.addEventListener('click', handleDeleteApiKey);
+            // On API key input change, clear masked state
+            apiKeyInput.addEventListener('input', () => {
+                apiKeyInput.classList.remove('masked-input');
+            });
+
+
+            // Prompt Generator listeners
+            globalModelSelect.addEventListener('change', updateGlobalRatioOptions);
+            addPromptFromInputButton.addEventListener('click', addPromptFromGlobalInput);
+            currentPromptInput.addEventListener('keydown', handleCurrentPromptInputKeydown);
+            generateAllPromptsButton.addEventListener('click', handleGenerateAllButtonClick);
+
+            // My Videos listeners
+            videoSearchInput.addEventListener('input', filterVideos);
+            deleteAllVideosBtn.addEventListener('click', handleDeleteAllVideos);
+            downloadAllVideosBtn.addEventListener('click', handleDownloadAllVideos);
+
+
+            // Initial check for authentication status will be handled by onAuthStateChange
+            // No need for a separate initial getSession call here, as onAuthStateChange fires on load.
+        });
+    </script>
+</body>
+</html>
