@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Video Generator</title>
+    <title>AI Video Generator (Requires Backend)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -140,11 +140,16 @@
             <section id="prompt-generator-section" class="main-section space-y-6">
                 <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Prompt Generator</h2>
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
+                    <p class="text-red-500 dark:text-red-400 mb-4 font-bold">
+                        <svg class="inline-block w-5 h-5 mr-1 align-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        CRITICAL: For **actual** video generation from Google Cloud models, this frontend **requires your own secure backend server** (e.g., Node.js, Python Flask, Google Cloud Functions) to handle API calls and protect your Google Cloud API key. Without a backend configured, this app will simulate API responses. Replace `YOUR_SECURE_BACKEND_ENDPOINT_HERE` in the JavaScript.
+                    </p>
+                    
                     <!-- API Key Input (Temporary) -->
                     <div class="space-y-4 mb-6">
-                        <label for="apiKeyInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Google Cloud API Key (Temporary)</label>
-                        <input type="text" id="apiKeyInput" placeholder="Paste your Google Cloud API Key here" class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                        <p id="api-key-status" class="text-sm mt-2 text-gray-500 dark:text-gray-400">API Key is stored temporarily while this page is open.</p>
+                        <label for="apiKeyInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Your Backend API Key (or Placeholder)</label>
+                        <input type="text" id="apiKeyInput" placeholder="Paste your backend API Key here (temporary)" class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                        <p id="api-key-status" class="text-sm mt-2 text-gray-500 dark:text-gray-400">This key is sent to your backend for authentication and is stored temporarily while this page is open.</p>
                     </div>
 
                     <div class="flex flex-col sm:flex-row gap-4 mb-6">
@@ -187,7 +192,7 @@
                         Generate All Videos
                     </button>
 
-                    <!-- Generated Videos Display Area (NEW) -->
+                    <!-- Generated Videos Display Area -->
                     <div class="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">
                         <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Generated Videos</h3>
                         <div class="flex justify-end mb-4 gap-2">
@@ -216,8 +221,16 @@
     </div>
 
     <script type="module">
-        // Global State (no Supabase client needed)
-        let userApiKey = ''; // Loaded from API key input
+        // --- CRITICAL CONFIGURATION ---
+        // REPLACE THIS WITH THE ACTUAL URL OF YOUR SECURE BACKEND ENDPOINT
+        // Your backend will then securely call Google Cloud's Veo API.
+        const YOUR_BACKEND_API_URL = 'https://your-backend-server.com/api/generate-video'; 
+        // Example for a hypothetical Google Cloud Function: 
+        // const YOUR_BACKEND_API_URL = 'https://us-central1-your-gcp-project.cloudfunctions.net/generateVeoVideo';
+        // --- END CRITICAL CONFIGURATION ---
+
+        // Global State
+        let userApiKey = ''; // Loaded from API key input, temporary
         let currentPrompts = []; // Stores prompts and their generated video data
         let currentDashboardSection = 'prompt-generator'; // Always start here
         let isDarkMode = false;
@@ -371,7 +384,7 @@
         }
 
         /**
-         * Generates a unique ID (for client-side video status tracking).
+         * Generates a unique ID for client-side tracking.
          * @returns {string}
          */
         function generateUUID() {
@@ -409,10 +422,9 @@
         }
 
         // --- Core Application Initialization ---
-        // (No authentication logic here, as per new requirements)
 
         /**
-         * Navigates to a specific dashboard section. (Simplified for this version)
+         * Navigates to a specific dashboard section.
          * @param {string} sectionId - The ID of the section to show (e.g., 'prompt-generator-section').
          */
         function showDashboardSection(sectionId) {
@@ -436,7 +448,6 @@
             // Specific refresh/load logic for sections
             if (sectionId === 'prompt-generator') {
                 populateGlobalSelects(); // Ensure global selects are populated
-                // Since no DB, prompts won't be loaded from external source, start fresh or use existing.
                 if (currentPrompts.length === 0) {
                     addPromptToGeneratorList(''); // Add a blank prompt if starting fresh
                 }
@@ -445,89 +456,92 @@
             }
         }
 
-        // --- API Key Handling (Temporary) ---
+        // --- API Key Handling (Temporary, Client-Side Only) ---
 
         /**
          * Updates the temporary userApiKey variable when the input changes.
          */
         function handleApiKeyInputChange(e) {
             userApiKey = e.target.value.trim();
+            // Re-render prompts to update generateAll button disabled state based on API key presence
+            renderPrompts();
         }
 
-        // --- Video Generation Logic (Simulated Google Cloud API) ---
+        // --- Video Generation Logic (Backend-Dependent) ---
 
         /**
-         * Populates the global model and ratio dropdowns.
-         */
-        function populateGlobalSelects() {
-            const modelsHtml = Object.keys(videoModels).map(model => `<option value="${model}">${model}</option>`).join('');
-            globalModelSelect.innerHTML = modelsHtml;
-
-            // Initially populate ratio for the default selected model
-            updateGlobalRatioOptions();
-        }
-
-        /**
-         * Updates global ratio options based on selected model.
-         */
-        function updateGlobalRatioOptions() {
-            const selectedModel = globalModelSelect.value;
-            const ratios = videoModels[selectedModel] || [];
-            globalRatioSelect.innerHTML = ratios.map(ratio => `
-                <option value="${ratio}" ${ratio === '16:9' ? 'selected' : ''}>${ratio}</option>
-            `).join('');
-        }
-
-        /**
-         * Simulates a Google Cloud Veo API call with retries.
+         * Sends a video generation request to the backend.
+         * This function handles retries for network/backend errors.
          * @param {string} promptText - The video prompt text.
          * @param {string} model - The selected model.
          * @param {string} ratio - The selected aspect ratio.
-         * @param {string} apiKey - The user's Google Cloud API key.
+         * @param {string} apiKey - The user's backend API key (or placeholder).
          * @param {string} clientPromptId - The client-side ID for this prompt (for tracking).
-         * @returns {Promise<Object>} - A promise that resolves with video data or rejects with an error.
+         * @returns {Promise<Object>} - A promise that resolves with video data from backend or rejects with an error.
          */
-        async function simulateGoogleCloudVideoGeneration(promptText, model, ratio, apiKey, clientPromptId) {
-            if (!apiKey || apiKey === 'INVALID_KEY_SIMULATION') {
-                throw new Error('Invalid Google Cloud API Key.');
+        async function sendVideoGenerationRequestToBackend(promptText, model, ratio, apiKey, clientPromptId) {
+            if (!apiKey.trim()) {
+                throw new Error('Backend API Key is missing. Please paste it in the input above.');
+            }
+            if (YOUR_BACKEND_API_URL === 'YOUR_SECURE_BACKEND_ENDPOINT_HERE') {
+                 // Fallback to simulation if backend URL is not configured
+                console.warn('Backend API URL not configured. Simulating video generation.');
+                return simulateVideoGeneration({ promptText, model, ratio, clientPromptId, apiKey });
             }
 
             for (let attempt = 1; attempt <= MAX_RETRIES_PER_PROMPT; attempt++) {
                 try {
-                    // Simulate API call delay
-                    await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + RETRY_DELAY_MS)); // 1-2 seconds delay
+                    const response = await fetch(YOUR_BACKEND_API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': apiKey // Custom header for your backend to validate
+                            // Or 'Authorization': `Bearer ${apiKey}` if your backend uses Bearer token auth
+                        },
+                        body: JSON.stringify({ prompt: promptText, model, ratio, clientPromptId })
+                    });
 
-                    // Simulate success or failure
-                    const shouldFail = Math.random() < 0.2 && attempt < MAX_RETRIES_PER_PROMPT; // 20% chance of temporary failure
-                    if (shouldFail) {
-                        throw new Error(`Temporary API error.`);
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: 'Unknown backend error.' }));
+                        // If it's a permanent error (e.g., 400 Bad Request, 401 Unauthorized), don't retry.
+                        // For this demo, we'll assume any non-OK response could be temporary if not 401/403/400.
+                        if (response.status >= 400 && response.status < 500 && response.status !== 429) { // Not retrying on typical client errors
+                             throw new Error(errorData.message || `Backend returned status ${response.status}`);
+                        }
+                        throw new Error(errorData.message || `Backend returned status ${response.status}.`); // Assume temporary for retries
                     }
 
-                    // Simulate success
-                    const videoUrl = `https://example.com/videos/${clientPromptId}.mp4`; // Dummy URL
-                    return {
-                        prompt: promptText,
-                        model: model,
-                        ratio: ratio,
-                        status: 'Completed',
-                        video_url: videoUrl,
-                        created_at: new Date().toISOString()
-                    };
+                    const result = await response.json();
+                    if (result.status === 'Completed' && result.video_url) {
+                         return {
+                            prompt: promptText,
+                            model: model,
+                            ratio: ratio,
+                            status: 'Completed',
+                            video_url: result.video_url, // This should come from your backend
+                            created_at: new Date().toISOString()
+                        };
+                    } else if (result.status === 'Processing' || result.status === 'Pending') {
+                        // Backend confirms job started but not complete, client should poll or rely on webhooks
+                        // For this simplified frontend, we'll just continue retries until it's 'Completed'
+                        throw new Error('Video still processing on backend.');
+                    } else {
+                        throw new Error(result.message || 'Unknown backend response.');
+                    }
 
                 } catch (error) {
-                    if (error.message.includes('Invalid Google Cloud API Key.')) {
-                        throw error; // Propagate invalid API key error immediately
+                    if (error.message.includes('Backend API Key is missing.') || error.message.includes('Invalid Google Cloud API Key.')) {
+                        throw error; // Critical error, no retries
                     }
                     if (attempt === MAX_RETRIES_PER_PROMPT) {
                         throw new Error(`Failed after ${MAX_RETRIES_PER_PROMPT} attempts: ${error.message}`);
                     }
                     console.warn(`Attempt ${attempt}/${MAX_RETRIES_PER_PROMPT} failed for prompt "${promptText}". Retrying...`);
-                    // Update specific prompt status in UI
                     const promptIndex = currentPrompts.findIndex(p => p.id === clientPromptId);
                     if (promptIndex !== -1) {
                         currentPrompts[promptIndex].status = 'Processing';
                         currentPrompts[promptIndex].retryAttempt = attempt;
-                        renderPrompts(); // Re-render to show retry progress
+                        renderPrompts();
                     }
                     await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
                 }
@@ -535,7 +549,32 @@
         }
 
         /**
-         * Handles the video generation process for a single prompt, purely client-side.
+         * SIMULATED API CALL - Used if YOUR_BACKEND_API_URL is not configured.
+         * @returns {Promise<Object>} - Simulated video data.
+         */
+        async function simulateVideoGeneration({ promptText, model, ratio, clientPromptId, apiKey }) {
+            // This is the simulation from previous versions
+            if (!apiKey.trim()) {
+                throw new Error('API Key is missing for simulation.');
+            }
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 3000)); // Simulate 3-5 seconds processing
+            const demoVideoUrl = 'https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4';
+            // You can add random failures for testing the retry mechanism here:
+            // if (Math.random() < 0.2) throw new Error('Simulated temporary error.');
+
+            return {
+                prompt: promptText,
+                model: model,
+                ratio: ratio,
+                status: 'Completed',
+                video_url: demoVideoUrl,
+                created_at: new Date().toISOString()
+            };
+        }
+
+
+        /**
+         * Handles the video generation process for a single prompt.
          * @param {string} clientPromptId - The client-side ID of the prompt to process.
          */
         async function processSinglePromptGeneration(clientPromptId) {
@@ -544,7 +583,7 @@
 
             const promptData = currentPrompts[promptDataIndex];
 
-            if (!userApiKey) {
+            if (!userApiKey.trim()) { 
                 promptData.status = 'Failed';
                 promptData.error = 'No API key provided. Please paste it in the input above.';
                 renderPrompts();
@@ -566,408 +605,4 @@
             renderPrompts(); // Update UI to 'Processing' immediately
 
             try {
-                const generatedVideoData = await simulateGoogleCloudVideoGeneration(promptData.prompt, promptData.model, promptData.ratio, userApiKey, clientPromptId);
-
-                // Update client-side prompt data
-                promptData.status = 'Completed';
-                promptData.video_url = generatedVideoData.video_url;
-                promptData.created_at = generatedVideoData.created_at;
-                promptData.retryAttempt = 0;
-                renderPrompts();
-                renderGeneratedVideos(); // Refresh the generated videos display
-                toast(`Video for "${promptData.prompt.substring(0, 30)}..." generated!`, 'success');
-
-            } catch (error) {
-                console.error('Video generation failed:', error);
-                // Update client-side prompt data
-                promptData.status = 'Failed';
-                promptData.error = error.message;
-                promptData.retryAttempt = 0;
-                renderPrompts();
-                toast(`Video generation failed for "${promptData.prompt.substring(0, 30)}...": ${error.message}`, 'error');
-            }
-        }
-
-        /**
-         * Manages the video generation queue.
-         */
-        async function processVideoQueue() {
-            isProcessingQueue = true;
-            generateAllPromptsButton.disabled = true; // Disable "Generate All" button
-            
-            let totalQueued = videoGenerationQueue.length;
-            let processedCount = 0;
-
-            while (videoGenerationQueue.length > 0) {
-                const clientPromptId = videoGenerationQueue[0]; // Peek at the next item
-                const prompt = currentPrompts.find(p => p.id === clientPromptId);
-                
-                // Only process if prompt still exists and is not already done/failed
-                if (prompt && (prompt.status === 'Queued' || prompt.status === 'Processing')) {
-                    processedCount++;
-                    showPersistentLoadingToast(
-                        `Processing video ${processedCount}/${totalQueued} in queue`,
-                        `Generating for "${prompt.prompt.substring(0, 50)}..."`,
-                        true, false
-                    );
-                    await processSinglePromptGeneration(clientPromptId);
-                    videoGenerationQueue.shift(); // Remove only after processing
-                    // Add delay *before* starting the next prompt, but not after the last one
-                    if (videoGenerationQueue.length > 0) {
-                        await new Promise(resolve => setTimeout(resolve, GENERATION_DELAY_MS));
-                    }
-                } else {
-                    // If prompt was deleted or completed while in queue, just remove it
-                    videoGenerationQueue.shift();
-                }
-            }
-            isProcessingQueue = false;
-            generateAllPromptsButton.disabled = false; // Re-enable "Generate All" button
-            hidePersistentLoadingToast(); // Hide final loading toast
-            toast('All queued videos processed!', 'success');
-        }
-
-        // --- Prompt Generator Section Functions ---
-
-        /**
-         * Adds a prompt to the currentPrompts array and updates the UI.
-         * @param {string|null} initialPromptText - Optional text to pre-fill the prompt.
-         * @param {boolean} [focus=true] - Whether to focus the new prompt's textarea.
-         */
-        function addPromptToGeneratorList(initialPromptText = '', focus = true) {
-            const newPrompt = {
-                id: generateUUID(),
-                prompt: initialPromptText,
-                model: globalModelSelect.value,
-                ratio: globalRatioSelect.value,
-                status: initialPromptText.trim() === '' ? 'Ready' : 'Idle',
-                video_url: null,
-                created_at: new Date().toISOString(),
-                isEditing: initialPromptText.trim() === '', // New empty prompts start in edit mode
-                retryAttempt: 0,
-                error: null
-            };
-            currentPrompts.unshift(newPrompt); // Add to the beginning of the list
-            renderPrompts(focus ? newPrompt.id : null); // Render and focus on the new prompt
-            if (promptsListContainer.contains(noActivePromptsMessage)) {
-                noActivePromptsMessage.classList.add('hidden');
-            }
-        }
-
-        /**
-         * Adds a prompt from the `current-prompt-input` text area.
-         */
-        function addPromptFromGlobalInput() {
-            const promptText = currentPromptInput.value.trim();
-            if (promptText) {
-                addPromptToGeneratorList(promptText);
-                currentPromptInput.value = ''; // Clear the input box
-            } else {
-                toast("Please enter a prompt.", 'info');
-            }
-        }
-
-        /**
-         * Renders all prompt boxes in the UI.
-         * @param {string|null} focusPromptId - ID of the prompt to focus its textarea after rendering.
-         */
-        function renderPrompts(focusPromptId = null) {
-            promptsListContainer.innerHTML = '';
-            const activePrompts = currentPrompts.filter(p => p.status !== 'Completed');
-
-            if (activePrompts.length === 0) {
-                noActivePromptsMessage.classList.remove('hidden');
-            } else {
-                noActivePromptsMessage.classList.add('hidden');
-            }
-
-            activePrompts.forEach(prompt => {
-                const promptBox = document.createElement('div');
-                promptBox.id = `prompt-box-${prompt.id}`;
-                promptBox.classList.add('prompt-input-wrapper', 'rounded-lg', 'shadow-sm', 'p-4', 'border', 'flex', 'flex-col', 'sm:flex-row', 'gap-4', 'items-start', 'sm:items-center', 'card');
-
-                let statusColorClass = 'text-gray-500';
-                let statusText = prompt.status;
-                let spinnerHtml = '';
-                let editButtonDisabled = false;
-                let deleteButtonDisabled = false;
-
-                if (prompt.status === 'Ready') {
-                    statusText = 'Ready';
-                    statusColorClass = 'text-gray-500';
-                } else if (prompt.status === 'Idle') {
-                    statusText = 'Idle';
-                    statusColorClass = 'text-gray-500';
-                } else if (prompt.status === 'Queued') {
-                    statusText = 'Queued';
-                    statusColorClass = 'text-blue-500';
-                    editButtonDisabled = true;
-                    deleteButtonDisabled = true;
-                } else if (prompt.status === 'Processing') {
-                    statusText = `Processing (${prompt.retryAttempt}/${MAX_RETRIES_PER_PROMPT})`;
-                    statusColorClass = 'text-yellow-600';
-                    spinnerHtml = '<div class="loader !w-4 !h-4 !border-2 mr-2"></div>';
-                    editButtonDisabled = true;
-                    deleteButtonDisabled = true;
-                } else if (prompt.status === 'Failed') {
-                    statusText = `Failed: ${prompt.error || 'Unknown error'}`;
-                    statusColorClass = 'text-red-600';
-                    editButtonDisabled = false; // Allow editing failed prompts
-                }
-
-                const textareaDisabled = !prompt.isEditing || editButtonDisabled;
-
-                promptBox.innerHTML = `
-                    <div class="flex-1 w-full space-y-2">
-                        <textarea
-                            id="prompt-input-${prompt.id}"
-                            class="block w-full px-3 py-2 border rounded-md shadow-sm bg-gray-50 dark:bg-gray-700 dark:text-white form-control ${textareaDisabled ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ''}"
-                            rows="2"
-                            placeholder="Enter your video prompt here..."
-                            data-prompt-id="${prompt.id}"
-                            ${textareaDisabled ? 'disabled' : ''}
-                        >${prompt.prompt}</textarea>
-                        <div class="flex flex-wrap items-center text-xs text-gray-600 dark:text-gray-400 gap-x-3 gap-y-1">
-                            <span class="flex items-center ${statusColorClass} dark:${statusColorClass.replace('text-', 'text-')}-dark">
-                                ${spinnerHtml}
-                                <span>Status: ${statusText}</span>
-                            </span>
-                            <span>Model: ${prompt.model}</span>
-                            <span>Ratio: ${prompt.ratio}</span>
-                        </div>
-                    </div>
-                    <div class="flex-shrink-0 flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
-                        <button type="button"
-                            class="action-edit-prompt-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${prompt.isEditing ? 'bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600'} btn-primary ${editButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                            data-prompt-id="${prompt.id}"
-                            ${editButtonDisabled ? 'disabled' : ''}
-                        >
-                            ${prompt.isEditing ? 'Save' : 'Edit'}
-                        </button>
-                        <button type="button"
-                            class="action-delete-prompt-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 w-full btn-primary ${deleteButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                            data-prompt-id="${prompt.id}"
-                            ${deleteButtonDisabled ? 'disabled' : ''}
-                        >
-                            Delete
-                        </button>
-                    </div>
-                `;
-                promptsListContainer.appendChild(promptBox);
-            });
-
-            // Re-enable/disable Generate All button based on current prompts state
-            const hasGeneratablePrompts = activePrompts.some(p => (p.status === 'Idle' || p.status === 'Failed') && p.prompt.trim() !== '');
-            generateAllPromptsButton.disabled = isProcessingQueue || !hasGeneratablePrompts || !userApiKey; // Also disable if no API key
-
-
-            // Attach event listeners after rendering
-            activePrompts.forEach(prompt => {
-                const textarea = document.getElementById(`prompt-input-${prompt.id}`);
-                if (textarea) {
-                    textarea.addEventListener('input', (e) => handlePromptListItemInput(e, prompt.id));
-                    if (prompt.id === focusPromptId && prompt.isEditing) {
-                        textarea.focus();
-                        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-                    }
-                }
-                document.querySelector(`#prompt-box-${prompt.id} .action-edit-prompt-btn`)?.addEventListener('click', () => handleEditButtonClick(prompt.id));
-                document.querySelector(`#prompt-box-${prompt.id} .action-delete-prompt-btn`)?.addEventListener('click', () => handleDeletePrompt(prompt.id));
-            });
-        }
-
-        function handlePromptListItemInput(e, promptId) {
-            const promptIndex = currentPrompts.findIndex(p => p.id === promptId);
-            if (promptIndex !== -1) {
-                currentPrompts[promptIndex].prompt = e.target.value;
-                if (currentPrompts[promptIndex].status === 'Ready' && e.target.value.trim() !== '') {
-                    currentPrompts[promptIndex].status = 'Idle';
-                } else if (currentPrompts[promptIndex].status === 'Idle' && e.target.value.trim() === '') {
-                    currentPrompts[promptIndex].status = 'Ready';
-                }
-                renderPrompts(null); // Re-render to update generateAll button status if needed
-            }
-        }
-
-        function handleCurrentPromptInputKeydown(e) {
-            if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) { // Desktop, not Shift+Enter
-                e.preventDefault(); // Prevent new line in textarea
-                addPromptFromGlobalInput();
-            }
-        }
-
-        function handleGenerateAllButtonClick() {
-            if (!userApiKey) {
-                toast('Please paste your Google Cloud API key in the input above.', 'error');
-                return;
-            }
-
-            const promptsToQueue = currentPrompts.filter(p => (p.status === 'Idle' || p.status === 'Failed') && p.prompt.trim() !== '');
-
-            if (promptsToQueue.length === 0) {
-                toast('No new or failed prompts to generate.', 'info');
-                return;
-            }
-
-            toast(`Adding ${promptsToQueue.length} prompts to queue...`, 'info');
-            promptsToQueue.forEach(prompt => {
-                prompt.status = 'Queued';
-                prompt.isEditing = false; // Lock for editing once queued
-                videoGenerationQueue.push(prompt.id);
-            });
-            renderPrompts(); // Update UI to 'Queued' state
-
-            if (!isProcessingQueue) {
-                processVideoQueue();
-            }
-        }
-
-        function handleEditButtonClick(promptId) {
-            const promptIndex = currentPrompts.findIndex(p => p.id === promptId);
-            if (promptIndex !== -1) {
-                const prompt = currentPrompts[promptIndex];
-                if (prompt.status === 'Processing' || prompt.status === 'Queued' || prompt.status === 'Completed') {
-                    toast(`Cannot edit a prompt that is ${prompt.status.toLowerCase()}.`, 'error');
-                    return;
-                }
-
-                // Toggle editing mode
-                prompt.isEditing = !prompt.isEditing;
-                
-                // If exiting edit mode (Save button clicked)
-                if (!prompt.isEditing) {
-                    // If the prompt became empty after editing, delete it.
-                    if (!prompt.prompt.trim()) {
-                        toast('Prompt cannot be empty. Deleting empty prompt.', 'info', 'Automatically deleting empty prompt.');
-                        handleDeletePrompt(prompt.id); // Delete if it was saved empty
-                        return;
-                    }
-                }
-                renderPrompts(prompt.isEditing ? prompt.id : null); // Re-render and focus on the textarea if in edit mode
-            }
-        }
-
-        async function handleDeletePrompt(promptId) {
-            const promptIndex = currentPrompts.findIndex(p => p.id === promptId);
-            if (promptIndex === -1) return;
-
-            const prompt = currentPrompts[promptIndex];
-
-            if (prompt.status === 'Processing' || prompt.status === 'Queued') {
-                toast('Cannot delete a prompt that is currently being processed or is queued.', 'error');
-                return;
-            }
-
-            if (!confirm(`Are you sure you want to delete the prompt "${prompt.prompt.substring(0, 50)}..."?`)) return;
-
-            // Delete logic is now purely client-side
-            currentPrompts.splice(promptIndex, 1); // Remove from client-side array
-            renderPrompts(); // Re-render to update the list
-            renderGeneratedVideos(); // Re-render generated videos in case one was deleted
-            toast('Prompt deleted successfully.', 'success');
-        }
-
-        // --- Generated Videos Display (New Section) ---
-
-        /**
-         * Renders all successfully generated videos in the display area.
-         */
-        function renderGeneratedVideos() {
-            generatedVideosDisplay.innerHTML = '';
-            const completedVideos = currentPrompts.filter(p => p.status === 'Completed' && p.video_url);
-
-            if (completedVideos.length === 0) {
-                noGeneratedVideosMessage.classList.remove('hidden');
-                downloadAllGeneratedVideosBtn.classList.add('hidden');
-                return;
-            }
-            noGeneratedVideosMessage.classList.add('hidden');
-            downloadAllGeneratedVideosBtn.classList.remove('hidden');
-
-            completedVideos.forEach(video => {
-                const videoCard = document.createElement('div');
-                videoCard.classList.add('bg-gray-50', 'dark:bg-gray-700', 'p-4', 'rounded-lg', 'shadow-sm', 'border', 'border-gray-200', 'dark:border-gray-600', 'space-y-3', 'card');
-
-                videoCard.innerHTML = `
-                    <h3 class="font-semibold text-lg text-gray-900 dark:text-white">${video.prompt}</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Model: ${video.model} | Ratio: ${video.ratio}</p>
-                    <div class="flex items-center text-sm text-green-600 dark:text-green-400">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <span>Status: Completed</span>
-                    </div>
-                    <video controls src="${video.video_url}" class="w-full h-auto rounded-md mb-2"></video>
-                    <a href="${video.video_url}" download="${video.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.mp4" class="inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 w-full mt-2 btn-primary">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        Download
-                    </a>
-                `;
-                generatedVideosDisplay.appendChild(videoCard);
-            });
-        }
-
-        /**
-         * Initiates download for all completed videos currently in the generated display area.
-         */
-        async function handleDownloadAllGeneratedVideos() {
-            const completedVideos = currentPrompts.filter(p => p.status === 'Completed' && p.video_url);
-
-            if (completedVideos.length === 0) {
-                toast('No completed videos to download.', 'info');
-                return;
-            }
-
-            toast(`Initiating download for ${completedVideos.length} videos...`, 'info', 'Check your browser downloads.');
-
-            for (const video of completedVideos) {
-                try {
-                    const link = document.createElement('a');
-                    link.href = video.video_url;
-                    link.download = `${video.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.mp4`; // Sanitize filename
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between downloads
-                } catch (error) {
-                    console.error('Error downloading video:', video.id, error);
-                    // Continue with other downloads even if one fails
-                }
-            }
-        }
-
-
-        // --- Initialization ---
-
-        /**
-         * Initial setup when the page loads.
-         */
-        document.addEventListener('DOMContentLoaded', async () => {
-            initializeDarkMode();
-
-            // Set up event listeners for dashboard elements
-            darkModeToggle.addEventListener('click', toggleDarkMode);
-
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    showDashboardSection(e.currentTarget.dataset.section);
-                });
-            });
-
-            // API Key input (temporary)
-            apiKeyInput.addEventListener('input', handleApiKeyInputChange);
-
-
-            // Prompt Generator listeners
-            globalModelSelect.addEventListener('change', updateGlobalRatioOptions);
-            addPromptFromInputButton.addEventListener('click', addPromptFromGlobalInput);
-            currentPromptInput.addEventListener('keydown', handleCurrentPromptInputKeydown);
-            generateAllPromptsButton.addEventListener('click', handleGenerateAllButtonClick);
-            downloadAllGeneratedVideosBtn.addEventListener('click', handleDownloadAllGeneratedVideos);
-
-
-            // Always start on the Prompt Generator section, no auth needed
-            showDashboardSection('prompt-generator');
-        });
-    </script>
-</body>
-</html>
+                // Call the function that sends the 
