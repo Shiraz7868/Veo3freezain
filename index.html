@@ -3,21 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Video Generator Dashboard</title>
+    <title>AI Video Generator</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS SDK CDN (ESM for proper import) -->
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-        const SUPABASE_URL = 'https://hdydckrgbdfqhvrxmmpi.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhkeWRja3JnYmRmcWh2cnhtbXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyNzg1NzcsImV4cCI6MjA3MTg1NDU3N30.DXqqPbAODuwJSQIkWLJTesV3Ku_9HHvX-b14Wourfp0';
-        
-        window.supabaseClient = createClient(
-            SUPABASE_URL,
-            SUPABASE_ANON_KEY,
-            { auth: { persistSession: true, autoRefreshToken: true } }
-        );
-    </script>
 
     <style>
         /* Custom CSS for professional look and feel, and dark mode transitions */
@@ -122,73 +110,20 @@
             background-color: #2d3748; /* Dark background for individual prompt boxes */
             border: 1px solid #4a5568;
         }
-        /* Masked input for API key */
-        .masked-input {
-            -webkit-text-security: disc;
-        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 antialiased dark:bg-gray-900 dark:text-gray-200">
-    <!-- Auth View (Login/Register Forms) -->
-    <div id="authView" class="min-h-screen flex items-center justify-center p-6">
-        <div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 space-y-6">
-            <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-900 dark:text-white">Login</h2>
-            
-            <!-- Login Form -->
-            <form id="login-form" class="space-y-4">
-                <div>
-                    <label for="loginEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
-                    <input type="email" id="loginEmail" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                </div>
-                <div>
-                    <label for="loginPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                    <input type="password" id="loginPassword" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                </div>
-                <button type="button" id="loginBtn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 btn-primary">Login</button>
-            </form>
-
-            <!-- Register Form (Initially Hidden) -->
-            <form id="register-form" class="space-y-4 hidden">
-                <div>
-                    <label for="registerEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
-                    <input type="email" id="registerEmail" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                </div>
-                <div>
-                    <label for="registerPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                    <input type="password" id="registerPassword" required class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                </div>
-                <button type="button" id="registerBtn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 btn-primary">Register</button>
-            </form>
-
-            <div class="text-center text-sm">
-                <p id="auth-toggle-message" class="text-gray-600 dark:text-gray-400">Don't have an account? <a href="#" id="toggle-auth-mode" class="font-medium text-indigo-600 hover:text-indigo-500">Register</a></p>
-                <p id="auth-confirm-notice" class="text-sm text-yellow-600 dark:text-yellow-400 mt-2 hidden">
-                    Email not confirmed. <button type="button" id="resendConfirmationBtn" class="font-medium text-indigo-600 hover:text-indigo-500 underline">Resend confirmation?</button>
-                </p>
-            </div>
-            <p id="auth-error-message" class="text-red-500 text-sm text-center"></p>
-        </div>
-    </div>
-
-    <!-- App View (Dashboard) -->
-    <div id="appView" class="min-h-screen flex hidden">
+    <!-- App View (Dashboard) - Always Visible -->
+    <div id="appView" class="min-h-screen flex">
         <!-- Sidebar -->
         <aside class="w-64 bg-white dark:bg-gray-800 shadow-md flex flex-col justify-between sidebar">
             <div class="p-6">
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">AI Video Studio</h1>
                 <nav class="space-y-2">
-                    <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="api-settings">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2v5a2 2 0 01-2 2h-2a2 2 0 01-2-2V9a2 2 0 012-2h2zM5 7a2 2 0 012 2v5a2 2 0 01-2 2H3a2 2 0 01-2-2V9a2 2 0 012-2h2zM21 7a2 2 0 012 2v5a2 2 0 01-2 2h-2a2 2 0 01-2-2V9a2 2 0 012-2h2z"></path></svg>
-                        API Settings
-                    </a>
                     <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="prompt-generator">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                         Prompt Generator
                     </a>
-                    <a href="#" class="flex items-center px-4 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 font-medium nav-item" data-section="my-videos">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                        My Videos
-                    </a
                 </nav>
             </div>
             <div class="p-6 border-t border-gray-200 dark:border-gray-700">
@@ -196,42 +131,22 @@
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9 9 0 008.354-5.646z"></path></svg>
                     <span id="dark-mode-text">Dark Mode</span>
                 </button>
-                <button type="button" id="logoutBtn" class="w-full flex items-center justify-center px-4 py-2 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 font-medium">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                    Logout
-                </button>
             </div>
         </aside>
 
         <!-- Main Content Area -->
         <main class="flex-1 p-8 overflow-y-auto">
-            <!-- API Settings Section -->
-            <section id="api-settings-section" class="main-section space-y-6">
-                <h2 class="text-3xl font-bold text-gray-900 dark:text-white">API Settings</h2>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
-                    <p class="text-gray-700 dark:text-gray-300 mb-4">Enter your Google Cloud API key. This key is stored locally in your browser and used for all video generation requests.</p>
-                    <form id="api-key-form" class="space-y-4">
-                        <div>
-                            <label for="apiKeyInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Google Cloud API Key</label>
-                            <input type="text" id="apiKeyInput" placeholder="Enter your Google Cloud API Key" class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                        </div>
-                        <div class="flex gap-2">
-                            <button type="button" id="saveApiKeyBtn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 btn-primary">
-                                Save API Key
-                            </button>
-                            <button type="button" id="deleteApiKeyBtn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 btn-primary">
-                                Delete API Key
-                            </button>
-                        </div>
-                        <p id="api-key-status" class="text-sm mt-2"></p>
-                    </form>
-                </div>
-            </section>
-
-            <!-- Prompt Generator Section -->
-            <section id="prompt-generator-section" class="main-section hidden space-y-6">
+            <!-- Prompt Generator Section (Now includes API Key and generated videos) -->
+            <section id="prompt-generator-section" class="main-section space-y-6">
                 <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Prompt Generator</h2>
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
+                    <!-- API Key Input (Temporary) -->
+                    <div class="space-y-4 mb-6">
+                        <label for="apiKeyInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Google Cloud API Key (Temporary)</label>
+                        <input type="text" id="apiKeyInput" placeholder="Paste your Google Cloud API Key here" class="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
+                        <p id="api-key-status" class="text-sm mt-2 text-gray-500 dark:text-gray-400">API Key is stored temporarily while this page is open.</p>
+                    </div>
+
                     <div class="flex flex-col sm:flex-row gap-4 mb-6">
                         <div class="flex-1 min-w-[200px]">
                             <label for="global-model-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">AI Model</label>
@@ -271,33 +186,20 @@
                         <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c-1.105 0-2 .895-2 2s.895 2 2 2 2-.895 2-2-.895-2-2-2zm0 0H6a2 2 0 00-2 2v-3a2 2 0 012-2h3zm-6 3a2 2 0 11-4 0 2 2 0 014 0zm0 0h-3zm-6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                         Generate All Videos
                     </button>
-                </div>
-            </section>
 
-            <!-- My Videos Section -->
-            <section id="my-videos-section" class="main-section hidden space-y-6">
-                <h2 class="text-3xl font-bold text-gray-900 dark:text-white">My Videos</h2>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md card">
-                    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                        <div class="relative w-full sm:w-1/2">
-                            <input type="text" id="video-search-input" placeholder="Search by prompt, model, or status..." class="block w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white form-control">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            </div>
-                        </div>
-                        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                            <button type="button" id="download-all-videos-btn" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-primary">
+                    <!-- Generated Videos Display Area (NEW) -->
+                    <div class="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Generated Videos</h3>
+                        <div class="flex justify-end mb-4 gap-2">
+                             <button type="button" id="download-all-generated-videos-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-primary">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                Download All
-                            </button>
-                            <button type="button" id="delete-all-videos-btn" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 btn-primary">
-                                Delete All Videos
+                                Download All Generated
                             </button>
                         </div>
-                    </div>
-                    <div id="videos-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <p id="no-videos-message" class="col-span-full text-center text-gray-500 dark:text-gray-400">No videos generated yet. Start generating some!</p>
-                        <!-- Video cards will be dynamically loaded here -->
+                        <div id="generated-videos-display" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <p id="no-generated-videos-message" class="col-span-full text-center text-gray-500 dark:text-gray-400">No videos have been generated yet.</p>
+                            <!-- Generated video cards will be dynamically loaded here -->
+                        </div>
                     </div>
                 </div>
             </section>
@@ -314,50 +216,21 @@
     </div>
 
     <script type="module">
-        // Access Supabase client initialized in the head
-        const supabase = window.supabaseClient;
-
-        // Global State
-        let currentUser = null;
-        let userApiKey = ''; // Loaded from localStorage
-        let videos = []; // Stores ALL videos (completed, failed, pending) from Supabase for 'My Videos'
-        let currentPrompts = []; // Stores prompts actively being worked on in 'Prompt Generator'
-        let currentAuthMode = 'login'; // 'login' or 'register'
-        let currentDashboardSection = 'api-settings'; // Default to API Settings
+        // Global State (no Supabase client needed)
+        let userApiKey = ''; // Loaded from API key input
+        let currentPrompts = []; // Stores prompts and their generated video data
+        let currentDashboardSection = 'prompt-generator'; // Always start here
         let isDarkMode = false;
         let videoGenerationQueue = []; // For prompts waiting to be processed
         let isProcessingQueue = false;
-        let isResendingConfirmation = false; // To prevent multiple resend clicks
 
-        // DOM Elements - Auth View
-        const authView = document.getElementById('authView');
+        // DOM Elements - App View
         const appView = document.getElementById('appView');
-        const authTitle = document.getElementById('auth-title');
-        const loginForm = document.getElementById('login-form');
-        const loginEmail = document.getElementById('loginEmail');
-        const loginPassword = document.getElementById('loginPassword');
-        const loginBtn = document.getElementById('loginBtn');
-        const registerForm = document.getElementById('register-form');
-        const registerEmail = document.getElementById('registerEmail');
-        const registerPassword = document.getElementById('registerPassword');
-        const registerBtn = document.getElementById('registerBtn');
-        const authToggleMessage = document.getElementById('auth-toggle-message');
-        const toggleAuthModeButton = document.getElementById('toggle-auth-mode');
-        const authErrorMessage = document.getElementById('auth-error-message');
-        const authConfirmNotice = document.getElementById('auth-confirm-notice');
-        const resendConfirmationBtn = document.getElementById('resendConfirmationBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
         const darkModeToggle = document.getElementById('dark-mode-toggle');
         const darkModeText = document.getElementById('dark-mode-text');
 
-
-        // DOM Elements - API Settings Section
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
-        const deleteApiKeyBtn = document.getElementById('deleteApiKeyBtn');
-        const apiKeyStatus = document.getElementById('api-key-status');
-
         // DOM Elements - Prompt Generator Section
+        const apiKeyInput = document.getElementById('apiKeyInput'); // Temporary API Key Input
         const globalModelSelect = document.getElementById('global-model-select');
         const globalRatioSelect = document.getElementById('global-ratio-select');
         const currentPromptInput = document.getElementById('current-prompt-input');
@@ -365,13 +238,9 @@
         const promptsListContainer = document.getElementById('prompts-list-container');
         const noActivePromptsMessage = document.getElementById('no-active-prompts-message');
         const generateAllPromptsButton = document.getElementById('generate-all-prompts-button');
-
-        // DOM Elements - My Videos Section
-        const videosList = document.getElementById('videos-list');
-        const noVideosMessage = document.getElementById('no-videos-message');
-        const deleteAllVideosBtn = document.getElementById('delete-all-videos-btn');
-        const downloadAllVideosBtn = document.getElementById('download-all-videos-btn');
-        const videoSearchInput = document.getElementById('video-search-input');
+        const generatedVideosDisplay = document.getElementById('generated-videos-display'); // New container for generated videos
+        const noGeneratedVideosMessage = document.getElementById('no-generated-videos-message'); // New message for no generated videos
+        const downloadAllGeneratedVideosBtn = document.getElementById('download-all-generated-videos-btn'); // New button
 
         // DOM Elements - Toast Notification
         const loadingToast = document.getElementById('loading-toast');
@@ -539,183 +408,12 @@
             darkModeText.textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
         }
 
-        // --- Supabase Authentication ---
+        // --- Core Application Initialization ---
+        // (No authentication logic here, as per new requirements)
 
         /**
-         * Handles user registration.
-         */
-        async function handleRegister() {
-            authErrorMessage.textContent = '';
-            const email = registerEmail.value.trim();
-            const password = registerPassword.value;
-
-            if (!email || !password) {
-                authErrorMessage.textContent = 'Email and password cannot be empty.';
-                return;
-            }
-
-            const { data, error } = await supabase.auth.signUp({ email, password });
-            if (error) {
-                authErrorMessage.textContent = 'Register failed: ' + error.message;
-                toast('Register failed: ' + error.message, 'error');
-                return;
-            }
-            toast('Register success. Check your email to confirm.', 'success');
-            // Optionally switch to login mode after successful registration
-            currentAuthMode = 'login';
-            updateAuthFormsUI();
-        }
-
-        /**
-         * Handles user login.
-         */
-        async function handleLogin() {
-            authErrorMessage.textContent = '';
-            const email = loginEmail.value.trim();
-            const password = loginPassword.value;
-
-            if (!email || !password) {
-                authErrorMessage.textContent = 'Email and password cannot be empty.';
-                return;
-            }
-
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) {
-                if (error.message && error.message.toLowerCase().includes('confirm')) {
-                    showConfirmNotice(email); // shows “Email not confirmed” + Resend link
-                }
-                authErrorMessage.textContent = 'Login failed: ' + error.message;
-                toast('Login failed: ' + error.message, 'error');
-                return;
-            }
-            toast('Login success!', 'success');
-            // onAuthStateChange will handle dashboard initialization
-        }
-
-        /**
-         * Shows the "Email not confirmed" notice and sets up resend confirmation.
-         * @param {string} email - The email to resend confirmation to.
-         */
-        function showConfirmNotice(email) {
-            authConfirmNotice.classList.remove('hidden');
-            resendConfirmationBtn.onclick = async () => {
-                if (isResendingConfirmation) return;
-                isResendingConfirmation = true;
-                toast('Resending confirmation email...', 'info'); // Using regular toast here
-                const { error } = await supabase.auth.resend({ type: 'signup', email });
-                if (error) {
-                    toast('Resend failed: ' + error.message, 'error');
-                } else {
-                    toast('Confirmation email resent. Check your inbox.', 'success');
-                }
-                isResendingConfirmation = false;
-            };
-        }
-
-        /**
-         * Updates the UI to show either login or register form.
-         */
-        function updateAuthFormsUI() {
-            authErrorMessage.textContent = '';
-            authConfirmNotice.classList.add('hidden');
-
-            if (currentAuthMode === 'login') {
-                authTitle.textContent = 'Login';
-                loginForm.classList.remove('hidden');
-                registerForm.classList.add('hidden');
-                authToggleMessage.innerHTML = `Don't have an account? <a href="#" id="toggle-auth-mode" class="font-medium text-indigo-600 hover:text-indigo-500">Register</a>`;
-            } else { // register
-                authTitle.textContent = 'Register';
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                authToggleMessage.innerHTML = `Already have an account? <a href="#" id="toggle-auth-mode" class="font-medium text-indigo-600 hover:text-indigo-500">Login</a>`;
-            }
-            // Re-attach the event listener for the toggle button as its HTML is replaced
-            document.getElementById('toggle-auth-mode').addEventListener('click', toggleAuthMode);
-        }
-
-        /**
-         * Toggles between login and registration forms.
-         * @param {Event} e - The click event.
-         */
-        function toggleAuthMode(e) {
-            e.preventDefault();
-            currentAuthMode = (currentAuthMode === 'login') ? 'register' : 'login';
-            updateAuthFormsUI();
-        }
-
-        /**
-         * Handles user logout.
-         */
-        async function handleLogout() {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                console.error('Logout failed:', error);
-                toast('Logout failed: ' + error.message, 'error');
-            } else {
-                toast('Logged out.', 'info');
-                // onAuthStateChange will handle state reset and UI switch
-            }
-        }
-
-        /**
-         * Bootstraps the application after a user is authenticated.
-         * @param {Object} user - The Supabase user object.
-         */
-        async function bootstrapAppFor(user) {
-            currentUser = user;
-            appView.classList.remove('hidden');
-            authView.classList.add('hidden');
-
-            // Initialize user profile in DB if it doesn't exist
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('id')
-                .eq('id', currentUser.id)
-                .single();
-
-            if (userError && userError.code === 'PGRST116') { // No user found, create one
-                const { error: insertError } = await supabase
-                    .from('users')
-                    .insert([{ id: currentUser.id, email: currentUser.email }]);
-                if (insertError) {
-                    console.error('Error creating user profile:', insertError);
-                    toast(`Error creating user profile: ${insertError.message}`, 'error');
-                } else {
-                    console.log('User profile created successfully.');
-                }
-            } else if (userError) {
-                console.error('Error checking user profile:', userError);
-                toast(`Error checking user profile: ${userError.message}`, 'error');
-            }
-            
-            // Render dashboard sections
-            showDashboardSection(currentDashboardSection); // Will call specific loaders for sections
-        }
-
-        /**
-         * Supabase auth state change listener.
-         */
-        supabase.auth.onAuthStateChange(async (_event, session) => {
-            const isAuthed = !!session?.user;
-            if (isAuthed) {
-                await bootstrapAppFor(session.user);
-            } else {
-                currentUser = null;
-                userApiKey = '';
-                videos = [];
-                currentPrompts = [];
-                authView.classList.remove('hidden');
-                appView.classList.add('hidden');
-                updateAuthFormsUI(); // Ensure correct auth form is visible
-            }
-        });
-
-        // --- Dashboard UI Management ---
-
-        /**
-         * Navigates to a specific dashboard section.
-         * @param {string} sectionId - The ID of the section to show (e.g., 'api-settings-section').
+         * Navigates to a specific dashboard section. (Simplified for this version)
+         * @param {string} sectionId - The ID of the section to show (e.g., 'prompt-generator-section').
          */
         function showDashboardSection(sectionId) {
             document.querySelectorAll('.main-section').forEach(section => {
@@ -724,7 +422,7 @@
             document.getElementById(`${sectionId}-section`).classList.remove('hidden');
             currentDashboardSection = sectionId;
 
-            // Update active state in sidebar
+            // Update active state in sidebar (simplified)
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.remove('bg-indigo-100', 'dark:bg-indigo-700', 'text-indigo-700', 'dark:text-indigo-100');
                 item.classList.add('text-gray-700', 'dark:text-gray-300');
@@ -736,163 +434,24 @@
             }
 
             // Specific refresh/load logic for sections
-            if (sectionId === 'my-videos') {
-                fetchUserVideos();
-            } else if (sectionId === 'api-settings') {
-                loadUserApiKey();
-            } else if (sectionId === 'prompt-generator') {
+            if (sectionId === 'prompt-generator') {
                 populateGlobalSelects(); // Ensure global selects are populated
-                loadUserPrompts(); // Load existing prompts when navigating to this section
-            }
-        }
-
-        // --- API Key Management ---
-
-        /**
-         * Fetches and displays the user's saved Google Cloud API key from localStorage.
-         */
-        async function loadUserApiKey() {
-            if (!currentUser) {
-                apiKeyInput.value = '';
-                userApiKey = '';
-                apiKeyStatus.textContent = 'Please log in to manage API Key.';
-                apiKeyStatus.classList.remove('text-green-500');
-                apiKeyStatus.classList.add('text-red-500');
-                apiKeyInput.classList.remove('masked-input'); // Ensure not masked if no user
-                return;
-            }
-
-            const storedApiKey = localStorage.getItem('gcloud_api_key');
-            if (storedApiKey) {
-                apiKeyInput.value = storedApiKey;
-                apiKeyInput.classList.add('masked-input'); // Mask if present
-                userApiKey = storedApiKey;
-                apiKeyStatus.textContent = 'API Key loaded from local storage.';
-                apiKeyStatus.classList.remove('text-red-500');
-                apiKeyStatus.classList.add('text-green-500');
-            } else {
-                // If not in localStorage, check Supabase
-                try {
-                    const { data, error } = await supabase
-                        .from('users')
-                        .select('api_key')
-                        .eq('id', currentUser.id)
-                        .single();
-
-                    if (error && error.code !== 'PGRST116') throw error; // PGRST116 means no row found
-                    
-                    if (data && data.api_key) {
-                        localStorage.setItem('gcloud_api_key', data.api_key); // Store in local storage for future quick access
-                        apiKeyInput.value = data.api_key;
-                        apiKeyInput.classList.add('masked-input');
-                        userApiKey = data.api_key;
-                        apiKeyStatus.textContent = 'API Key loaded from database.';
-                        apiKeyStatus.classList.remove('text-red-500');
-                        apiKeyStatus.classList.add('text-green-500');
-                    } else {
-                        apiKeyInput.value = '';
-                        apiKeyInput.classList.remove('masked-input');
-                        userApiKey = '';
-                        apiKeyStatus.textContent = 'No API Key found. Please add one.';
-                        apiKeyStatus.classList.remove('text-green-500');
-                        apiKeyStatus.classList.add('text-red-500');
-                    }
-                } catch (error) {
-                    console.error('Error loading API key from DB:', error);
-                    apiKeyStatus.textContent = `Error loading API key: ${error.message}`;
-                    apiKeyStatus.classList.remove('text-green-500');
-                    apiKeyStatus.classList.add('text-red-500');
+                // Since no DB, prompts won't be loaded from external source, start fresh or use existing.
+                if (currentPrompts.length === 0) {
+                    addPromptToGeneratorList(''); // Add a blank prompt if starting fresh
                 }
+                renderPrompts();
+                renderGeneratedVideos(); // Also render any already generated videos
             }
         }
 
-        /**
-         * Saves or updates the user's Google Cloud API key in localStorage and Supabase.
-         * @param {Event} e - The form submission event.
-         */
-        async function handleApiKeyFormSubmit() {
-            if (!currentUser) {
-                toast('Please log in to save API Key.', 'error');
-                return;
-            }
-            const newApiKey = apiKeyInput.value.trim();
-            if (!newApiKey) {
-                apiKeyStatus.textContent = 'API Key cannot be empty.';
-                apiKeyStatus.classList.remove('text-green-500');
-                apiKeyStatus.classList.add('text-red-500');
-                return;
-            }
-
-            showPersistentLoadingToast('Saving API Key...', '', true); // Changed to persistent
-            try {
-                // Save to localStorage
-                localStorage.setItem('gcloud_api_key', newApiKey);
-                userApiKey = newApiKey;
-
-                // Save to Supabase users table (use update to avoid email constraint issue)
-                const { error } = await supabase
-                    .from('users')
-                    .update({ api_key: newApiKey }) // ONLY update api_key
-                    .eq('id', currentUser.id); // For the current user
-
-                if (error) throw error;
-
-                apiKeyInput.classList.add('masked-input');
-                apiKeyStatus.textContent = 'API Key saved successfully!';
-                apiKeyStatus.classList.remove('text-red-500');
-                apiKeyStatus.classList.add('text-green-500');
-                toast('API Key saved successfully.', 'success'); // Regular toast for final message
-            } catch (error) {
-                console.error('Error saving API key:', error);
-                apiKeyStatus.textContent = `Error saving API key: ${error.message}`;
-                apiKeyStatus.classList.remove('text-green-500');
-                apiKeyStatus.classList.add('text-red-500');
-                toast(`Error saving API key: ${error.message}`, 'error');
-            } finally {
-                hidePersistentLoadingToast(); // Hide persistent toast
-            }
-        }
+        // --- API Key Handling (Temporary) ---
 
         /**
-         * Deletes the API key from localStorage and Supabase.
+         * Updates the temporary userApiKey variable when the input changes.
          */
-        async function handleDeleteApiKey() {
-            if (!currentUser) {
-                toast('Please log in to delete API Key.', 'error');
-                return;
-            }
-
-            if (!confirm('Are you sure you want to delete your API Key?')) return;
-
-            showPersistentLoadingToast('Deleting API Key...', '', true); // Changed to persistent
-            try {
-                // Remove from localStorage
-                localStorage.removeItem('gcloud_api_key');
-                userApiKey = '';
-
-                // Remove from Supabase users table
-                const { error } = await supabase
-                    .from('users')
-                    .update({ api_key: null })
-                    .eq('id', currentUser.id);
-
-                if (error) throw error;
-
-                apiKeyInput.value = '';
-                apiKeyInput.classList.remove('masked-input');
-                apiKeyStatus.textContent = 'API Key deleted.';
-                apiKeyStatus.classList.remove('text-green-500');
-                apiKeyStatus.classList.add('text-red-500');
-                toast('API Key deleted successfully.', 'info');
-            } catch (error) {
-                console.error('Error deleting API key:', error);
-                apiKeyStatus.textContent = `Error deleting API key: ${error.message}`;
-                apiKeyStatus.classList.remove('text-green-500');
-                apiKeyStatus.classList.add('text-red-500');
-                toast(`Error deleting API key: ${error.message}`, 'error');
-            } finally {
-                hidePersistentLoadingToast(); // Hide persistent toast
-            }
+        function handleApiKeyInputChange(e) {
+            userApiKey = e.target.value.trim();
         }
 
         // --- Video Generation Logic (Simulated Google Cloud API) ---
@@ -976,7 +535,7 @@
         }
 
         /**
-         * Handles the video generation process for a single prompt, including Supabase storage.
+         * Handles the video generation process for a single prompt, purely client-side.
          * @param {string} clientPromptId - The client-side ID of the prompt to process.
          */
         async function processSinglePromptGeneration(clientPromptId) {
@@ -985,19 +544,11 @@
 
             const promptData = currentPrompts[promptDataIndex];
 
-            // Pre-checks for API key and user, should be done before adding to queue
-            if (!currentUser) {
-                promptData.status = 'Failed';
-                promptData.error = 'User not logged in.';
-                renderPrompts();
-                toast('Please log in to generate videos.', 'error');
-                return;
-            }
             if (!userApiKey) {
                 promptData.status = 'Failed';
-                promptData.error = 'No API key provided. Please set it in API Settings.';
+                promptData.error = 'No API key provided. Please paste it in the input above.';
                 renderPrompts();
-                toast('Please save your Google Cloud API key first in API Settings.', 'error');
+                toast('Please paste your Google Cloud API key first.', 'error');
                 return;
             }
             if (!promptData.prompt.trim()) {
@@ -1014,55 +565,8 @@
             promptData.isEditing = false; // Ensure it's not editable during processing
             renderPrompts(); // Update UI to 'Processing' immediately
 
-            // First, ensure this prompt exists in Supabase. If not, insert it.
-            let videoRecordId = promptData.dbId;
-            if (!videoRecordId) {
-                const { data, error } = await supabase
-                    .from('videos')
-                    .insert([{
-                        user_id: currentUser.id,
-                        prompt: promptData.prompt,
-                        model: promptData.model,
-                        ratio: promptData.ratio,
-                        status: 'Pending', // Use 'Pending' for DB insert
-                        video_url: null
-                    }])
-                    .select()
-                    .single();
-
-                if (error) {
-                    console.error('Error saving pending video to Supabase:', error);
-                    promptData.status = 'Failed';
-                    promptData.error = `Failed to save pending video: ${error.message}`;
-                    renderPrompts();
-                    return;
-                }
-                videoRecordId = data.id;
-                promptData.dbId = videoRecordId; // Update client-side prompt with actual DB ID
-            } else {
-                 // If it already has a dbId, update its status to 'Pending' in Supabase
-                await supabase
-                    .from('videos')
-                    .update({ status: 'Pending', video_url: null })
-                    .eq('id', videoRecordId);
-            }
-            renderPrompts(); // Re-render to ensure dbId is reflected if newly set
-
-
             try {
                 const generatedVideoData = await simulateGoogleCloudVideoGeneration(promptData.prompt, promptData.model, promptData.ratio, userApiKey, clientPromptId);
-
-                // Update Supabase with 'Completed' status and video_url
-                const { error: updateError } = await supabase
-                    .from('videos')
-                    .update({
-                        status: 'Completed',
-                        video_url: generatedVideoData.video_url,
-                        created_at: generatedVideoData.created_at
-                    })
-                    .eq('id', videoRecordId);
-
-                if (updateError) throw updateError;
 
                 // Update client-side prompt data
                 promptData.status = 'Completed';
@@ -1070,19 +574,11 @@
                 promptData.created_at = generatedVideoData.created_at;
                 promptData.retryAttempt = 0;
                 renderPrompts();
-                fetchUserVideos(); // Refresh 'My Videos' list with the new video
+                renderGeneratedVideos(); // Refresh the generated videos display
                 toast(`Video for "${promptData.prompt.substring(0, 30)}..." generated!`, 'success');
 
             } catch (error) {
                 console.error('Video generation failed:', error);
-                // Update Supabase with 'Failed' status
-                if (videoRecordId) {
-                    await supabase
-                        .from('videos')
-                        .update({ status: 'Failed', video_url: null }) // Clear video_url on failure
-                        .eq('id', videoRecordId);
-                }
-
                 // Update client-side prompt data
                 promptData.status = 'Failed';
                 promptData.error = error.message;
@@ -1134,83 +630,13 @@
         // --- Prompt Generator Section Functions ---
 
         /**
-         * Loads existing prompts from Supabase that are not yet "Completed" or "Failed"
-         * and adds them to the dynamic prompts section. Also adds a default empty prompt.
-         */
-        async function loadUserPrompts() {
-            if (!currentUser) {
-                currentPrompts = [];
-                addPromptToGeneratorList(''); // Always show at least one empty prompt box initially
-                renderPrompts(); // Render to display empty prompt
-                return;
-            }
-
-            showPersistentLoadingToast('Loading your active prompts...', '', true); // Persistent toast for loading prompts
-            try {
-                const { data, error } = await supabase
-                    .from('videos')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .in('status', ['Pending', 'Processing']) // Load prompts still in progress
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                // Map Supabase video data to client-side prompt structure
-                const loadedPrompts = data.map(video => ({
-                    id: generateUUID(), // Client-side ID for UI manipulation
-                    dbId: video.id, // Supabase DB ID
-                    prompt: video.prompt,
-                    model: video.model,
-                    ratio: video.ratio,
-                    status: video.status === 'Pending' ? 'Queued' : 'Processing', // Adjust status for client-side
-                    video_url: video.video_url,
-                    created_at: video.created_at,
-                    isEditing: false, // Not editable if loaded as processing
-                    retryAttempt: 0,
-                    error: null
-                }));
-
-                currentPrompts = loadedPrompts;
-
-                // If no pending prompts, add an empty one.
-                if (currentPrompts.length === 0) {
-                    addPromptToGeneratorList(''); // Add a blank prompt at the top if none are pending
-                }
-
-                renderPrompts();
-
-                // If there are prompts in 'Processing' or 'Queued' state from previous session, restart processing
-                const queuedFromLoad = currentPrompts.filter(p => p.status === 'Queued' || p.status === 'Processing').map(p => p.id);
-                if (queuedFromLoad.length > 0) {
-                    toast(`Resuming ${queuedFromLoad.length} video generations...`, 'info');
-                    videoGenerationQueue.push(...queuedFromLoad);
-                    if (!isProcessingQueue) {
-                        processVideoQueue();
-                    }
-                }
-
-            } catch (error) {
-                console.error('Error loading user prompts:', error);
-                toast(`Error loading your pending prompts: ${error.message}`, 'error');
-                currentPrompts = []; // Clear any potentially corrupted state
-                addPromptToGeneratorList(''); // Ensure a prompt box is available even on error
-                renderPrompts();
-            } finally {
-                hidePersistentLoadingToast(); // Hide persistent toast
-            }
-        }
-
-
-        /**
-         * Adds a prompt from the global input box to the currentPrompts array and updates the UI.
+         * Adds a prompt to the currentPrompts array and updates the UI.
          * @param {string|null} initialPromptText - Optional text to pre-fill the prompt.
          * @param {boolean} [focus=true] - Whether to focus the new prompt's textarea.
          */
         function addPromptToGeneratorList(initialPromptText = '', focus = true) {
             const newPrompt = {
                 id: generateUUID(),
-                dbId: null, // Will be set after initial Supabase insert
                 prompt: initialPromptText,
                 model: globalModelSelect.value,
                 ratio: globalRatioSelect.value,
@@ -1247,13 +673,15 @@
          */
         function renderPrompts(focusPromptId = null) {
             promptsListContainer.innerHTML = '';
-            if (currentPrompts.length === 0) {
+            const activePrompts = currentPrompts.filter(p => p.status !== 'Completed');
+
+            if (activePrompts.length === 0) {
                 noActivePromptsMessage.classList.remove('hidden');
             } else {
                 noActivePromptsMessage.classList.add('hidden');
             }
 
-            currentPrompts.forEach(prompt => {
+            activePrompts.forEach(prompt => {
                 const promptBox = document.createElement('div');
                 promptBox.id = `prompt-box-${prompt.id}`;
                 promptBox.classList.add('prompt-input-wrapper', 'rounded-lg', 'shadow-sm', 'p-4', 'border', 'flex', 'flex-col', 'sm:flex-row', 'gap-4', 'items-start', 'sm:items-center', 'card');
@@ -1281,17 +709,13 @@
                     spinnerHtml = '<div class="loader !w-4 !h-4 !border-2 mr-2"></div>';
                     editButtonDisabled = true;
                     deleteButtonDisabled = true;
-                } else if (prompt.status === 'Completed') {
-                    statusText = 'Completed';
-                    statusColorClass = 'text-green-600';
-                    editButtonDisabled = true;
                 } else if (prompt.status === 'Failed') {
                     statusText = `Failed: ${prompt.error || 'Unknown error'}`;
                     statusColorClass = 'text-red-600';
                     editButtonDisabled = false; // Allow editing failed prompts
                 }
 
-                const textareaDisabled = !prompt.isEditing || editButtonDisabled || prompt.status === 'Completed';
+                const textareaDisabled = !prompt.isEditing || editButtonDisabled;
 
                 promptBox.innerHTML = `
                     <div class="flex-1 w-full space-y-2">
@@ -1320,11 +744,6 @@
                         >
                             ${prompt.isEditing ? 'Save' : 'Edit'}
                         </button>
-                        ${prompt.video_url ? `
-                        <a href="${prompt.video_url}" download="${prompt.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.mp4" class="inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600 btn-primary">
-                            Download
-                        </a>
-                        ` : ''}
                         <button type="button"
                             class="action-delete-prompt-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 w-full btn-primary ${deleteButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
                             data-prompt-id="${prompt.id}"
@@ -1338,12 +757,12 @@
             });
 
             // Re-enable/disable Generate All button based on current prompts state
-            const hasGeneratablePrompts = currentPrompts.some(p => (p.status === 'Idle' || p.status === 'Failed') && p.prompt.trim() !== '');
+            const hasGeneratablePrompts = activePrompts.some(p => (p.status === 'Idle' || p.status === 'Failed') && p.prompt.trim() !== '');
             generateAllPromptsButton.disabled = isProcessingQueue || !hasGeneratablePrompts || !userApiKey; // Also disable if no API key
 
 
             // Attach event listeners after rendering
-            currentPrompts.forEach(prompt => {
+            activePrompts.forEach(prompt => {
                 const textarea = document.getElementById(`prompt-input-${prompt.id}`);
                 if (textarea) {
                     textarea.addEventListener('input', (e) => handlePromptListItemInput(e, prompt.id));
@@ -1379,7 +798,7 @@
 
         function handleGenerateAllButtonClick() {
             if (!userApiKey) {
-                toast('Please save your Google Cloud API key first in API Settings.', 'error');
+                toast('Please paste your Google Cloud API key in the input above.', 'error');
                 return;
             }
 
@@ -1423,8 +842,6 @@
                         handleDeletePrompt(prompt.id); // Delete if it was saved empty
                         return;
                     }
-                    // If it had a dbId and content changed, we might want to update it in DB
-                    // (though for prompts being generated, this is handled by the process logic)
                 }
                 renderPrompts(prompt.isEditing ? prompt.id : null); // Re-render and focus on the textarea if in edit mode
             }
@@ -1443,213 +860,56 @@
 
             if (!confirm(`Are you sure you want to delete the prompt "${prompt.prompt.substring(0, 50)}..."?`)) return;
 
-            showPersistentLoadingToast('Deleting prompt...', '', true);
-            try {
-                if (prompt.dbId) {
-                    // If it was already saved to Supabase, delete it from there
-                    const { error } = await supabase
-                        .from('videos')
-                        .delete()
-                        .eq('id', prompt.dbId);
-                    if (error) throw error;
-                }
-
-                currentPrompts.splice(promptIndex, 1); // Remove from client-side array
-                renderPrompts(); // Re-render to update the list
-                toast('Prompt deleted successfully.', 'success');
-            } catch (error) {
-                console.error('Error deleting prompt:', error);
-                toast(`Error deleting prompt: ${error.message}`, 'error');
-            } finally {
-                hidePersistentLoadingToast();
-            }
+            // Delete logic is now purely client-side
+            currentPrompts.splice(promptIndex, 1); // Remove from client-side array
+            renderPrompts(); // Re-render to update the list
+            renderGeneratedVideos(); // Re-render generated videos in case one was deleted
+            toast('Prompt deleted successfully.', 'success');
         }
 
-        // --- My Videos Section ---
+        // --- Generated Videos Display (New Section) ---
 
         /**
-         * Fetches and renders the current user's videos.
+         * Renders all successfully generated videos in the display area.
          */
-        async function fetchUserVideos() {
-            if (!currentUser) {
-                videosList.innerHTML = '';
-                noVideosMessage.classList.remove('hidden');
+        function renderGeneratedVideos() {
+            generatedVideosDisplay.innerHTML = '';
+            const completedVideos = currentPrompts.filter(p => p.status === 'Completed' && p.video_url);
+
+            if (completedVideos.length === 0) {
+                noGeneratedVideosMessage.classList.remove('hidden');
+                downloadAllGeneratedVideosBtn.classList.add('hidden');
                 return;
             }
+            noGeneratedVideosMessage.classList.add('hidden');
+            downloadAllGeneratedVideosBtn.classList.remove('hidden');
 
-            showPersistentLoadingToast('Loading your videos...', '', true); // Use persistent toast for loading
-            try {
-                const { data, error } = await supabase
-                    .from('videos')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                videos = data; // Store all videos from Supabase
-                renderVideos(videos); // Render the complete list
-            } catch (error) {
-                console.error('Error fetching videos:', error);
-                toast(`Error loading videos: ${error.message}`, 'error');
-            } finally {
-                hidePersistentLoadingToast(); // Hide persistent toast in finally block
-            }
-        }
-
-        /**
-         * Renders the list of videos in the "My Videos" section.
-         * @param {Array<Object>} videosToRender - The array of video objects to render.
-         */
-        function renderVideos(videosToRender) {
-            videosList.innerHTML = '';
-            // Filter out 'Pending' or 'Processing' videos from this list, as they are managed in prompt-generator-section
-            const completedOrFailedVideos = videosToRender.filter(v => v.status === 'Completed' || v.status === 'Failed');
-
-            if (completedOrFailedVideos.length === 0) {
-                noVideosMessage.classList.remove('hidden');
-                deleteAllVideosBtn.classList.add('hidden');
-                downloadAllVideosBtn.classList.add('hidden');
-                return;
-            }
-            noVideosMessage.classList.add('hidden');
-            deleteAllVideosBtn.classList.remove('hidden');
-            
-            const hasDownloadableVideos = completedOrFailedVideos.some(v => v.status === 'Completed' && v.video_url);
-            if (hasDownloadableVideos) {
-                downloadAllVideosBtn.classList.remove('hidden');
-            } else {
-                downloadAllVideosBtn.classList.add('hidden');
-            }
-
-            completedOrFailedVideos.forEach(video => {
+            completedVideos.forEach(video => {
                 const videoCard = document.createElement('div');
                 videoCard.classList.add('bg-gray-50', 'dark:bg-gray-700', 'p-4', 'rounded-lg', 'shadow-sm', 'border', 'border-gray-200', 'dark:border-gray-600', 'space-y-3', 'card');
-
-                let statusColor = 'text-gray-500';
-                let statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                let videoContent = '';
-                let downloadButtonHtml = '';
-
-                if (video.status === 'Completed') {
-                    statusColor = 'text-green-600';
-                    statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                    videoContent = `<video controls src="${video.video_url}" class="w-full h-auto rounded-md mb-2"></video>`;
-                    downloadButtonHtml = `
-                        <a href="${video.video_url}" download="${video.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.mp4" class="individual-download-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 w-full mt-2 btn-primary">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            Download
-                        </a>
-                    `;
-                } else if (video.status === 'Failed') {
-                    statusColor = 'text-red-600';
-                    statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                    videoContent = `<p class="text-red-500 text-sm mt-2">Error: ${video.error || 'Unknown error'}</p>`;
-                }
-
 
                 videoCard.innerHTML = `
                     <h3 class="font-semibold text-lg text-gray-900 dark:text-white">${video.prompt}</h3>
                     <p class="text-sm text-gray-600 dark:text-gray-400">Model: ${video.model} | Ratio: ${video.ratio}</p>
-                    <div class="flex items-center text-sm ${statusColor} dark:${statusColor.replace('text-', 'text-')}-dark">
-                        ${statusIcon}
-                        <span>Status: ${video.status}</span>
+                    <div class="flex items-center text-sm text-green-600 dark:text-green-400">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>Status: Completed</span>
                     </div>
-                    ${videoContent}
-                    ${downloadButtonHtml}
-                    <button type="button" class="delete-video-btn inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 w-full btn-primary" data-db-id="${video.id}">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        Delete
-                    </button>
+                    <video controls src="${video.video_url}" class="w-full h-auto rounded-md mb-2"></video>
+                    <a href="${video.video_url}" download="${video.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.mp4" class="inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 w-full mt-2 btn-primary">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Download
+                    </a>
                 `;
-                videosList.appendChild(videoCard);
-            });
-
-            // Attach event listeners for newly rendered delete buttons
-            document.querySelectorAll('.delete-video-btn').forEach(button => {
-                button.addEventListener('click', handleDeleteVideo);
+                generatedVideosDisplay.appendChild(videoCard);
             });
         }
 
         /**
-         * Filters the video list based on search input.
-         * @param {Event} e - The input event.
+         * Initiates download for all completed videos currently in the generated display area.
          */
-        function filterVideos(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            // Filter the full 'videos' array, not just the currently rendered ones
-            const filtered = videos.filter(video =>
-                (video.prompt && video.prompt.toLowerCase().includes(searchTerm)) ||
-                (video.model && video.model.toLowerCase().includes(searchTerm)) ||
-                (video.status && video.status.toLowerCase().includes(searchTerm))
-            );
-            renderVideos(filtered);
-        }
-
-        /**
-         * Deletes a single video from Supabase and the UI.
-         * @param {Event} e - The click event.
-         */
-        async function handleDeleteVideo(e) {
-            const dbId = e.currentTarget.dataset.dbId; // Use data-db-id for Supabase ID
-            if (!dbId) return;
-
-            if (!confirm('Are you sure you want to delete this video?')) return;
-
-            showPersistentLoadingToast('Deleting video...', '', true);
-            try {
-                const { error } = await supabase
-                    .from('videos')
-                    .delete()
-                    .eq('id', dbId);
-
-                if (error) throw error;
-
-                videos = videos.filter(video => video.id !== dbId); // Remove from local state
-                renderVideos(videos); // Re-render the filtered list (My Videos section)
-                fetchUserVideos(); // Ensure the master video list is refreshed (re-hides/shows download all)
-                toast('Video deleted successfully.', 'success');
-            } catch (error) {
-                console.error('Error deleting video:', error);
-                toast(`Error deleting video: ${error.message}`, 'error');
-            } finally {
-                hidePersistentLoadingToast();
-            }
-        }
-
-        /**
-         * Deletes all videos for the current user.
-         */
-        async function handleDeleteAllVideos() {
-            if (!currentUser) return;
-
-            if (!confirm('Are you sure you want to delete ALL your videos? This action cannot be undone.')) return;
-
-            showPersistentLoadingToast('Deleting all videos...', '', true);
-            try {
-                const { error } = await supabase
-                    .from('videos')
-                    .delete()
-                    .eq('user_id', currentUser.id);
-
-                if (error) throw error;
-
-                videos = []; // Clear all videos from local state
-                renderVideos(videos); // Re-render the empty list
-                toast('All videos deleted successfully.', 'success');
-            } catch (error) {
-                console.error('Error deleting all videos:', error);
-                toast(`Error deleting all videos: ${error.message}`, 'error');
-            } finally {
-                hidePersistentLoadingToast();
-            }
-        }
-
-        /**
-         * Initiates download for all completed videos.
-         */
-        async function handleDownloadAllVideos() {
-            const completedVideos = videos.filter(v => v.status === 'Completed' && v.video_url);
+        async function handleDownloadAllGeneratedVideos() {
+            const completedVideos = currentPrompts.filter(p => p.status === 'Completed' && p.video_url);
 
             if (completedVideos.length === 0) {
                 toast('No completed videos to download.', 'info');
@@ -1683,14 +943,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             initializeDarkMode();
 
-            // Set up event listeners for auth forms
-            loginBtn.addEventListener('click', handleLogin);
-            registerBtn.addEventListener('click', handleRegister);
-            toggleAuthModeButton.addEventListener('click', toggleAuthMode);
-            // resendConfirmationBtn listener is attached dynamically in showConfirmNotice
-
-            // Set up event listeners for dashboard
-            logoutBtn.addEventListener('click', handleLogout);
+            // Set up event listeners for dashboard elements
             darkModeToggle.addEventListener('click', toggleDarkMode);
 
             document.querySelectorAll('.nav-item').forEach(item => {
@@ -1700,13 +953,8 @@
                 });
             });
 
-            // API Settings listeners
-            saveApiKeyBtn.addEventListener('click', handleApiKeyFormSubmit);
-            deleteApiKeyBtn.addEventListener('click', handleDeleteApiKey);
-            // On API key input change, clear masked state
-            apiKeyInput.addEventListener('input', () => {
-                apiKeyInput.classList.remove('masked-input');
-            });
+            // API Key input (temporary)
+            apiKeyInput.addEventListener('input', handleApiKeyInputChange);
 
 
             // Prompt Generator listeners
@@ -1714,15 +962,11 @@
             addPromptFromInputButton.addEventListener('click', addPromptFromGlobalInput);
             currentPromptInput.addEventListener('keydown', handleCurrentPromptInputKeydown);
             generateAllPromptsButton.addEventListener('click', handleGenerateAllButtonClick);
-
-            // My Videos listeners
-            videoSearchInput.addEventListener('input', filterVideos);
-            deleteAllVideosBtn.addEventListener('click', handleDeleteAllVideos);
-            downloadAllVideosBtn.addEventListener('click', handleDownloadAllVideos);
+            downloadAllGeneratedVideosBtn.addEventListener('click', handleDownloadAllGeneratedVideos);
 
 
-            // Initial check for authentication status will be handled by onAuthStateChange
-            // No need for a separate initial getSession call here, as onAuthStateChange fires on load.
+            // Always start on the Prompt Generator section, no auth needed
+            showDashboardSection('prompt-generator');
         });
     </script>
 </body>
